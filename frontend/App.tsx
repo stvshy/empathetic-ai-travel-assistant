@@ -661,7 +661,8 @@ const App: React.FC = () => {
               </div>
             </div>
           </div>
-        )}
+        )
+        }
         <div ref={chatEndRef} />
       </main>
       {/* --- FOOTER --- */}
