@@ -10,12 +10,14 @@ interface IWindow extends Window {
 }
 
 const App: React.FC = () => {
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
   const [state, setState] = useState<AppState>({
     isRecording: false,
     isProcessing: false,
-    transcript: "",
     messages: [
-      {
+      { 
         id: "initial",
         role: "assistant",
         text: "Cześć! Jestem Twoim Osobistym Architektem Podróży. Gdzie chciałbyś się wybrać?",
@@ -28,93 +30,80 @@ const App: React.FC = () => {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
 
-  // Initialize Speech Recognition
-  useEffect(() => {
-    const { webkitSpeechRecognition, SpeechRecognition } =
-      window as unknown as IWindow;
-    const Recognition = SpeechRecognition || webkitSpeechRecognition;
-
-    if (Recognition) {
-      recognitionRef.current = new Recognition();
-      recognitionRef.current.lang = "pl-PL";
-      recognitionRef.current.continuous = false;
-      recognitionRef.current.interimResults = true;
-
-      recognitionRef.current.onresult = (event: any) => {
-        const transcript = Array.from(event.results)
-          .map((result: any) => result[0])
-          .map((result: any) => result.transcript)
-          .join("");
-
-        setState((prev) => ({ ...prev, transcript }));
-      };
-
-      recognitionRef.current.onend = () => {
-        setState((prev) => ({ ...prev, isRecording: false }));
-      };
-
-      recognitionRef.current.onerror = (event: any) => {
-        console.error("Speech recognition error", event.error);
-        setState((prev) => ({
-          ...prev,
-          isRecording: false,
-          error: "Błąd rozpoznawania mowy.",
-        }));
-      };
-    } else {
-      setState((prev) => ({
-        ...prev,
-        error: "Twoja przeglądarka nie wspiera rozpoznawania mowy.",
-      }));
-    }
-  }, []);
 
   // Auto-scroll to bottom of chat
   useEffect(() => {
-    if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop =
-        chatContainerRef.current.scrollHeight;
-    }
-  }, [state.messages, state.isProcessing, state.transcript]);
+  if (chatContainerRef.current) {
+    chatContainerRef.current.scrollTop =
+      chatContainerRef.current.scrollHeight;
+  }
+}, [state.messages, state.isProcessing]);
 
-  const toggleRecording = useCallback(() => {
+  const toggleRecording = async () => {
     if (state.isRecording) {
-      recognitionRef.current?.stop();
-    } else {
-      setState((prev) => ({
-        ...prev,
-        transcript: "",
-        error: null,
-        isRecording: true,
-      }));
-      recognitionRef.current?.start();
+      mediaRecorderRef.current?.stop();
+      setState((prev) => ({ ...prev, isRecording: false }));
+      return;
     }
-  }, [state.isRecording]);
-
-  const handleSendMessage = async (text: string) => {
-    if (!text.trim()) return;
-
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: "user",
-      text: text,
-      timestamp: new Date(),
-    };
-
-    setState((prev) => ({
-      ...prev,
-      messages: [...prev.messages, userMessage],
-      isProcessing: true,
-      transcript: "",
-    }));
 
     try {
-      const responseText = await generateTravelResponse(text);
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: "audio/webm",
+      });
+
+      audioChunksRef.current = [];
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, {
+          type: "audio/webm",
+        });
+
+        await sendAudio(audioBlob);
+      };
+
+      mediaRecorder.start();
+      setState((prev) => ({ ...prev, isRecording: true, error: null }));
+    } catch {
+      setState((prev) => ({
+        ...prev,
+        error: "Nie można uzyskać dostępu do mikrofonu.",
+      }));
+    }
+  };
+
+
+  const sendAudio = async (audioBlob: Blob) => {
+    setState((prev) => ({ ...prev, isProcessing: true }));
+
+    const formData = new FormData();
+    formData.append("audio", audioBlob, "input.webm");
+
+    try {
+      const response = await fetch("http://localhost:5000/process", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error();
+      }
+
+      const { text } = await response.json();
+      // backend returns: { text: "AI response" }
 
       const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: Date.now().toString(),
         role: "assistant",
-        text: responseText,
+        text,
         timestamp: new Date(),
       };
 
@@ -123,21 +112,14 @@ const App: React.FC = () => {
         messages: [...prev.messages, assistantMessage],
         isProcessing: false,
       }));
-    } catch (err) {
+    } catch {
       setState((prev) => ({
         ...prev,
         isProcessing: false,
-        error: "Nie udało się uzyskać odpowiedzi od AI.",
+        error: "Błąd backendu.",
       }));
     }
   };
-
-  useEffect(() => {
-    // If recording stopped and we have a transcript, process it
-    if (!state.isRecording && state.transcript && !state.isProcessing) {
-      handleSendMessage(state.transcript);
-    }
-  }, [state.isRecording, state.transcript, state.isProcessing]);
 
   return (
     <div className="flex flex-col h-screen max-w-2xl mx-auto bg-white shadow-2xl overflow-hidden">
@@ -181,11 +163,12 @@ const App: React.FC = () => {
           <ChatBubble key={msg.id} message={msg} />
         ))}
 
+
         {state.isRecording && (
           <div className="flex justify-end mb-4">
-            <div className="bg-blue-50 text-blue-600 rounded-2xl px-4 py-3 border border-blue-100 flex items-center gap-3 italic text-sm">
-              <i className="fas fa-microphone animate-pulse"></i>
-              {state.transcript || "Słucham..."}
+            <div className="bg-blue-50 text-blue-600 rounded-2xl px-4 py-3 italic text-sm">
+              <i className="fas fa-microphone animate-pulse mr-2"></i>
+              Nagrywanie...
             </div>
           </div>
         )}
