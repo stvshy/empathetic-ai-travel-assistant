@@ -1,181 +1,482 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import { generateTravelResponse } from "./services/geminiService";
-import { Message, AppState } from "./types";
+import React, { useState, useEffect, useRef } from "react";
+import { Message, AppState, Settings } from "./types";
 import ChatBubble from "./components/ChatBubble";
 
-// Web Speech API interfaces (available in Chrome/Safari)
+// --- SŁOWNIK TŁUMACZEŃ ---
+const TRANSLATIONS = {
+  pl: {
+    title: "Asystent Podróży",
+    available: "Dostępny",
+    inputPlaceholder: "Napisz wiadomość...",
+    listening: "Słucham...",
+    processing: "Przetwarzam...",
+    serverError: "Błąd serwera.",
+    micError: "Błąd mikrofonu",
+    backendError: "Błąd backendu.",
+    settingsTitle: "Ustawienia",
+    langLabel: "Język / Language",
+    predefinedLabel: "Szybkie Profile",
+    advancedLabel: "Zaawansowane",
+    inputModelLabel: "Model Rozpoznawania Mowy (STT)",
+    voiceModelLabel: "Model Głosu (TTS)",
+    whisperWarning: "⚠ Wydłuża czas odpowiedzi (przesył audio)",
+    webDesc: "Szybki, brak emocji",
+    whisperDesc: "Wolniejszy, dokładniejszy",
+    featuresLabel: "Funkcje",
+    enableEmotions: "Wykrywanie Emocji",
+    enableTTS: "Czytanie Wiadomości (TTS)",
+    profileFast: "Szybki ⚡",
+    profileFastDesc: "Przeglądarka • Bez Emocji",
+    profileEmp: "Empatyczny ❤️",
+    profileEmpDesc: "Whisper AI • Emocje",
+    copyright: "Mateusz Staszków. Wszelkie prawa zastrzeżone.",
+  },
+  en: {
+    title: "Travel Assistant",
+    available: "Available",
+    inputPlaceholder: "Type a message...",
+    listening: "Listening...",
+    processing: "Processing...",
+    serverError: "Server error.",
+    micError: "Microphone error",
+    backendError: "Backend error.",
+    settingsTitle: "Settings",
+    langLabel: "Language",
+    predefinedLabel: "Quick Profiles",
+    advancedLabel: "Advanced Settings",
+    inputModelLabel: "Input Model (STT)",
+    voiceModelLabel: "Voice Model (TTS)",
+    whisperWarning: "⚠ Increases response time (audio upload)",
+    webDesc: "Fast, no emotions",
+    whisperDesc: "Slower, more accurate",
+    featuresLabel: "Features",
+    enableEmotions: "Emotion Detection",
+    enableTTS: "Read Messages (TTS)",
+    profileFast: "Fast ⚡",
+    profileFastDesc: "Browser • No Emotions",
+    profileEmp: "Empathetic ❤️",
+    profileEmpDesc: "Whisper AI • Emotions",
+    copyright: "Mateusz Staszków. All rights reserved.",
+  },
+};
+
 interface IWindow extends Window {
   webkitSpeechRecognition: any;
   SpeechRecognition: any;
 }
 
-const App: React.FC = () => {
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
+// --- KOMPONENT: Animacja Fali ---
+const SoundWave: React.FC = () => (
+  <div className="flex items-center justify-center gap-1 h-full w-full">
+    {[...Array(5)].map((_, i) => (
+      <div
+        key={i}
+        className="w-1.5 bg-blue-500 rounded-full animate-wave"
+        style={{
+          animationDelay: `${i * 0.1}s`,
+          height: "40%",
+          animation: "wave 1s ease-in-out infinite",
+        }}
+      ></div>
+    ))}
+    <style>{`
+      @keyframes wave {
+        0%, 100% { height: 30%; opacity: 0.5; }
+        50% { height: 100%; opacity: 1; }
+      }
+    `}</style>
+  </div>
+);
 
+const App: React.FC = () => {
+  // --- STATE ---
   const [state, setState] = useState<AppState>({
     isRecording: false,
     isProcessing: false,
-    messages: [
-      { 
-        id: "initial",
-        role: "assistant",
-        text: "Cześć! Jestem Twoim Osobistym Architektem Podróży. Gdzie chciałbyś się wybrać?",
-        timestamp: new Date(),
-      },
-    ],
+    transcript: "",
+    messages: [],
     error: null,
+    showSettings: false,
+    settings: {
+      language: "pl",
+      sttModel: "browser",
+      ttsModel: "browser",
+      enableEmotions: false,
+      enableTTS: false,
+    },
   });
 
-  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const [inputText, setInputText] = useState("");
+  const [interimTranscript, setInterimTranscript] = useState("");
+
+  const t = TRANSLATIONS[state.settings.language]; // Skrót do tłumaczeń
+
+  // --- REFS ---
+  const chatEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
-
-  // Auto-scroll to bottom of chat
+  // Initial Greeting
   useEffect(() => {
-  if (chatContainerRef.current) {
-    chatContainerRef.current.scrollTop =
-      chatContainerRef.current.scrollHeight;
-  }
-}, [state.messages, state.isProcessing]);
+    const greeting =
+      state.settings.language === "pl"
+        ? "Cześć! Gdzie chcesz lecieć?"
+        : "Hi! Where do you want to fly?";
 
-  const toggleRecording = async () => {
-    if (state.isRecording) {
-      mediaRecorderRef.current?.stop();
-      setState((prev) => ({ ...prev, isRecording: false }));
+    if (state.messages.length === 0 || state.messages[0].id === "init") {
+      setState((prev) => ({
+        ...prev,
+        messages: [
+          {
+            id: "init",
+            role: "assistant",
+            text: greeting,
+            timestamp: new Date(),
+          },
+        ],
+      }));
+    }
+  }, [state.settings.language]);
+
+  // Scroll to bottom
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [state.messages, state.isProcessing, interimTranscript]);
+
+  // --- TTS ---
+  const speakText = (text: string) => {
+    if (!state.settings.enableTTS) return;
+
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = state.settings.language === "pl" ? "pl-PL" : "en-US";
+    window.speechSynthesis.speak(utterance);
+  };
+
+  // --- ACTIONS ---
+  const handleNewChat = () => {
+    const greeting =
+      state.settings.language === "pl"
+        ? "Cześć! Gdzie chcesz lecieć?"
+        : "Hi! Where do you want to fly?";
+    setState((prev) => ({
+      ...prev,
+      messages: [
+        {
+          id: Date.now().toString(),
+          role: "assistant",
+          text: greeting,
+          timestamp: new Date(),
+        },
+      ],
+      error: null,
+      transcript: "",
+    }));
+    setInputText("");
+    setInterimTranscript("");
+  };
+
+  const handleSendMessage = async (text: string) => {
+    if (!text.trim()) return;
+
+    const userMsg: Message = {
+      id: Date.now().toString(),
+      role: "user",
+      text,
+      timestamp: new Date(),
+    };
+    setState((prev) => ({
+      ...prev,
+      messages: [...prev.messages, userMsg],
+      isProcessing: true,
+    }));
+    setInputText("");
+    setInterimTranscript("");
+
+    try {
+      const res = await fetch("http://localhost:5000/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text,
+          language: state.settings.language,
+        }),
+      });
+
+      const data = await res.json();
+      const aiMsg: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        text: data.response,
+        timestamp: new Date(),
+      };
+
+      setState((prev) => ({
+        ...prev,
+        messages: [...prev.messages, aiMsg],
+        isProcessing: false,
+      }));
+      speakText(data.response);
+    } catch (err) {
+      setState((prev) => ({
+        ...prev,
+        isProcessing: false,
+        error: t.serverError,
+      }));
+    }
+  };
+
+  // --- WEB SPEECH API ---
+  useEffect(() => {
+    const { webkitSpeechRecognition, SpeechRecognition } =
+      window as unknown as IWindow;
+    const Recognition = SpeechRecognition || webkitSpeechRecognition;
+
+    if (Recognition) {
+      recognitionRef.current = new Recognition();
+      recognitionRef.current.lang =
+        state.settings.language === "pl" ? "pl-PL" : "en-US";
+      recognitionRef.current.continuous = true;
+      recognitionRef.current.interimResults = true;
+
+      recognitionRef.current.onresult = (event: any) => {
+        let final = "";
+        let interim = "";
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          event.results[i].isFinal
+            ? (final += event.results[i][0].transcript)
+            : (interim += event.results[i][0].transcript);
+        }
+        if (final) {
+          handleSendMessage(final);
+          stopRecording();
+        } else {
+          setInterimTranscript(interim);
+        }
+      };
+
+      recognitionRef.current.onerror = () => stopRecording();
+      recognitionRef.current.onend = () => {
+        if (state.isRecording && state.settings.sttModel === "browser") {
+          setState((prev) => ({ ...prev, isRecording: false }));
+        }
+      };
+    }
+  }, [state.settings.language, state.settings.sttModel]);
+
+  // --- RECORDING ---
+  const startRecording = async () => {
+    setState((prev) => ({ ...prev, isRecording: true, error: null }));
+
+    if (state.settings.sttModel === "browser") {
+      try {
+        recognitionRef.current?.start();
+      } catch (e) {}
       return;
     }
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: "audio/webm",
-      });
-
+      mediaRecorderRef.current = new MediaRecorder(stream);
       audioChunksRef.current = [];
-      mediaRecorderRef.current = mediaRecorder;
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
+      mediaRecorderRef.current.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
       };
-
-      mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, {
-          type: "audio/webm",
-        });
-
-        await sendAudio(audioBlob);
+      mediaRecorderRef.current.onstop = async () => {
+        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        await sendAudioToBackend(blob);
+        stream.getTracks().forEach((t) => t.stop());
       };
-
-      mediaRecorder.start();
-      setState((prev) => ({ ...prev, isRecording: true, error: null }));
-    } catch {
-      setState((prev) => ({
-        ...prev,
-        error: "Nie można uzyskać dostępu do mikrofonu.",
-      }));
+      mediaRecorderRef.current.start();
+    } catch (e) {
+      setState((prev) => ({ ...prev, isRecording: false, error: t.micError }));
     }
   };
 
+  const stopRecording = () => {
+    setState((prev) => ({ ...prev, isRecording: false }));
+    setInterimTranscript("");
+    state.settings.sttModel === "browser"
+      ? recognitionRef.current?.stop()
+      : mediaRecorderRef.current?.stop();
+  };
 
-  const sendAudio = async (audioBlob: Blob) => {
+  const sendAudioToBackend = async (blob: Blob) => {
     setState((prev) => ({ ...prev, isProcessing: true }));
-
     const formData = new FormData();
-    formData.append("audio", audioBlob, "input.webm");
+    formData.append("audio", blob);
+    formData.append("language", state.settings.language);
 
     try {
-      const response = await fetch("http://localhost:5000/process", {
+      const res = await fetch("http://localhost:5000/process_audio", {
         method: "POST",
         body: formData,
       });
+      const data = await res.json();
 
-      if (!response.ok) {
-        throw new Error();
-      }
-
-      const { text } = await response.json();
-      // backend returns: { text: "AI response" }
-
-      const assistantMessage: Message = {
+      const userMsg: Message = {
         id: Date.now().toString(),
+        role: "user",
+        text: data.user_text,
+        timestamp: new Date(),
+      };
+
+      // LOGIKA EMOCJI: Jeśli wyłączone w ustawieniach, nie pokazujemy ich (chociaż backend je obliczył)
+      // Jeśli włączone, możemy je dokleić do stanu lub wykorzystać w UI (tutaj tylko czysty tekst)
+      const aiMsg: Message = {
+        id: (Date.now() + 1).toString(),
         role: "assistant",
-        text,
+        text: data.response,
         timestamp: new Date(),
       };
 
       setState((prev) => ({
         ...prev,
-        messages: [...prev.messages, assistantMessage],
+        messages: [...prev.messages, userMsg, aiMsg],
         isProcessing: false,
       }));
-    } catch {
+      speakText(data.response);
+    } catch (err) {
       setState((prev) => ({
         ...prev,
         isProcessing: false,
-        error: "Błąd backendu.",
+        error: t.backendError,
       }));
     }
   };
 
+  // --- SETTINGS HELPERS ---
+  const activeProfile = (): "fast" | "empathetic" | "custom" => {
+    const { sttModel, ttsModel, enableEmotions, enableTTS } = state.settings;
+    if (
+      sttModel === "browser" &&
+      ttsModel === "browser" &&
+      !enableEmotions &&
+      !enableTTS
+    )
+      return "fast";
+    // Profil Empathetic: Whisper + Emocje ON
+    if (sttModel === "whisper" && ttsModel === "browser" && enableEmotions)
+      return "empathetic";
+    return "custom";
+  };
+
   return (
-    <div className="flex flex-col h-screen max-w-2xl mx-auto bg-white shadow-2xl overflow-hidden">
-      {/* Header */}
-      <header className="bg-white border-b px-6 py-4 flex items-center justify-between">
+    <div className="flex flex-col h-screen max-w-2xl mx-auto bg-white shadow-2xl relative overflow-hidden">
+      {" "}
+      {/* --- HEADER --- */}
+      <header className="bg-white border-b px-6 py-4 flex items-center justify-between z-10">
         <div className="flex items-center gap-3">
           <div className="bg-blue-100 p-2 rounded-xl text-blue-600">
             <i className="fas fa-plane-departure text-xl"></i>
           </div>
           <div>
-            <h1 className="font-bold text-gray-800 text-lg">
-              Travel Assistant
-            </h1>
+            {/* Tytuł: powrót do text-lg */}
+            <h1 className="font-bold text-gray-800 text-lg">{t.title}</h1>
+
+            {/* Status: powrót do text-xs, usunięcie uppercase i tracking-wider */}
             <p className="text-xs text-green-500 font-medium flex items-center gap-1">
               <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
-              Dostępny
+              {t.available}
             </p>
           </div>
         </div>
-        <button
-          onClick={() =>
-            setState((prev) => ({
-              ...prev,
-              messages: [prev.messages[0]],
-              error: null,
-            }))
-          }
-          className="text-gray-400 hover:text-gray-600 transition-colors"
-          title="Resetuj rozmowę"
-        >
-          <i className="fas fa-rotate-left"></i>
-        </button>
-      </header>
 
-      {/* Chat Area */}
-      <main
-        ref={chatContainerRef}
-        className="flex-1 overflow-y-auto p-6 space-y-2 bg-gray-50/50"
-      >
+        <div className="flex items-center gap-1">
+          {/* Quick Toggles (Visible outside settings) */}
+          <button
+            onClick={() =>
+              setState((prev) => ({
+                ...prev,
+                settings: {
+                  ...prev.settings,
+                  enableTTS: !prev.settings.enableTTS,
+                },
+              }))
+            }
+            className={`rounded-full flex items-center justify-center transition-all ${
+              state.settings.enableTTS
+                ? "w-11 h-11 bg-green-100 text-green-600"
+                : "w-9 h-9 bg-transparent text-gray-300 hover:text-gray-400"
+            }`}
+            title={t.enableTTS}
+          >
+            <i
+              className={`fas text-lg ${
+                state.settings.enableTTS ? "fa-volume-high" : "fa-volume-xmark"
+              }`}
+            ></i>
+          </button>
+
+          <button
+            onClick={() =>
+              setState((prev) => ({
+                ...prev,
+                settings: {
+                  ...prev.settings,
+                  enableEmotions: !prev.settings.enableEmotions,
+                  sttModel: !prev.settings.enableEmotions
+                    ? "whisper"
+                    : prev.settings.sttModel,
+                },
+              }))
+            }
+            className={`rounded-full flex items-center justify-center transition-all ${
+              state.settings.enableEmotions
+                ? "w-11 h-11 bg-purple-100 text-purple-600"
+                : "w-9 h-9 bg-transparent text-gray-300 hover:text-gray-400"
+            }`}
+            title={t.enableEmotions}
+          >
+            <i
+              className={`fas text-lg ${
+                state.settings.enableEmotions ? "fa-face-smile" : "fa-face-meh"
+              }`}
+            ></i>
+          </button>
+
+          {/* Divider */}
+          <div className="h-5 border-l border-gray-200"></div>
+
+          {/* New Chat (Clean Icon) */}
+          <button
+            onClick={handleNewChat}
+            className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-blue-600 transition-colors"
+            title="Nowy Czat"
+          >
+            <i className="fas fa-plus text-xl"></i>
+          </button>
+
+          {/* Settings */}
+          <button
+            onClick={() =>
+              setState((prev) => ({ ...prev, showSettings: true }))
+            }
+            className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
+            title={t.settingsTitle}
+          >
+            <i className="fas fa-cog text-xl"></i>
+          </button>
+        </div>
+      </header>
+      {/* --- CHAT --- */}
+      <main className="flex-1 overflow-y-auto p-6 space-y-2 bg-gray-50/50">
         {state.messages.map((msg) => (
           <ChatBubble key={msg.id} message={msg} />
         ))}
 
-
-        {state.isRecording && (
+        {interimTranscript && (
           <div className="flex justify-end mb-4">
-            <div className="bg-blue-50 text-blue-600 rounded-2xl px-4 py-3 italic text-sm">
-              <i className="fas fa-microphone animate-pulse mr-2"></i>
-              Nagrywanie...
+            <div className="max-w-[80%] rounded-2xl px-4 py-3 bg-gray-100 text-gray-500 rounded-tr-none border border-gray-200 opacity-80 italic">
+              <p className="text-sm">{interimTranscript}...</p>
             </div>
           </div>
         )}
 
         {state.isProcessing && (
-          <div className="flex justify-start mb-4">
-            <div className="bg-white border border-gray-100 rounded-2xl px-4 py-3 flex items-center gap-2">
+          <div className="flex justify-start">
+            <div className="bg-white border border-gray-100 rounded-2xl px-4 py-3 flex items-center gap-2 shadow-sm">
               <div className="flex gap-1">
                 <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div>
                 <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
@@ -184,56 +485,340 @@ const App: React.FC = () => {
             </div>
           </div>
         )}
-
+        <div ref={chatEndRef} />
+      </main>
+      {/* --- FOOTER --- */}
+      <footer className="p-4 bg-white border-t">
         {state.error && (
-          <div className="p-3 bg-red-50 text-red-600 rounded-lg text-xs text-center border border-red-100">
+          <div className="text-red-500 text-xs mb-2 text-center">
             {state.error}
           </div>
         )}
-      </main>
 
-      {/* Control Area */}
-      <footer className="p-6 bg-white border-t">
-        <div className="flex flex-col items-center gap-4">
-          <p className="text-xs text-gray-400 font-medium uppercase tracking-widest">
-            {state.isRecording
-              ? "Mów teraz..."
-              : "Kliknij mikrofon, aby zaplanować podróż"}
-          </p>
-
+        <div className="flex items-center gap-2 mb-2">
           <button
-            onClick={toggleRecording}
-            disabled={state.isProcessing}
+            onClick={state.isRecording ? stopRecording : startRecording}
             className={`
-              relative w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300
+              h-12 w-12 rounded-full flex-shrink-0 flex items-center justify-center transition-all shadow-md
               ${
                 state.isRecording
-                  ? "bg-red-500 scale-110 shadow-lg shadow-red-200"
-                  : "bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200"
-              }
-              ${
-                state.isProcessing
-                  ? "opacity-50 cursor-not-allowed"
-                  : "cursor-pointer"
+                  ? "bg-red-500 shadow-red-200 animate-pulse"
+                  : state.settings.enableEmotions
+                  ? "bg-purple-600 hover:bg-purple-700 text-white"
+                  : "bg-blue-600 hover:bg-blue-700 text-white"
               }
             `}
           >
-            {state.isRecording ? (
-              <div className="absolute inset-0 rounded-full animate-ping bg-red-400 opacity-30"></div>
-            ) : null}
             <i
               className={`fas ${
-                state.isRecording ? "fa-stop" : "fa-microphone"
-              } text-2xl text-white`}
+                state.isRecording ? "fa-stop" : "fa-microphone text-lg"
+              }`}
             ></i>
           </button>
 
-          <div className="text-[10px] text-gray-300 text-center max-w-xs">
-            &copy; {new Date().getFullYear()} Mateusz Staszków. All rights
-            reserved.
+          <div className="flex-1 h-12 bg-gray-100 rounded-full px-5 flex items-center transition-all relative overflow-hidden">
+            {state.isRecording ? (
+              <SoundWave />
+            ) : (
+              <>
+                <input
+                  type="text"
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" && handleSendMessage(inputText)
+                  }
+                  placeholder={t.inputPlaceholder}
+                  className="bg-transparent w-full h-full outline-none text-gray-700 placeholder-gray-400 text-sm"
+                />
+                <button
+                  onClick={() => handleSendMessage(inputText)}
+                  className="text-blue-600 hover:text-blue-800 ml-2"
+                >
+                  <i className="fas fa-paper-plane"></i>
+                </button>
+              </>
+            )}
           </div>
         </div>
+
+        <div className="text-[10px] text-gray-300 text-center font-medium">
+          &copy; {new Date().getFullYear()} {t.copyright}
+        </div>
       </footer>
+      {/* --- SETTINGS MODAL --- */}
+      {state.showSettings && (
+        <div className="absolute inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh]">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-gray-800">
+                {t.settingsTitle}
+              </h2>
+              <button
+                onClick={() =>
+                  setState((prev) => ({ ...prev, showSettings: false }))
+                }
+                className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-200"
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              {/* Język */}
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
+                  {t.langLabel}
+                </label>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() =>
+                      setState((prev) => ({
+                        ...prev,
+                        settings: { ...prev.settings, language: "pl" },
+                      }))
+                    }
+                    className={`flex-1 py-3 rounded-2xl border-2 transition-all flex flex-col items-center justify-center gap-2 ${
+                      state.settings.language === "pl"
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-transparent bg-gray-50 opacity-60"
+                    }`}
+                  >
+                    <span
+                      className="fi fi-pl"
+                      style={{ fontSize: "1.7rem", borderRadius: "0.375rem" }}
+                    ></span>
+                    <span className="text-xs font-medium text-gray-700">
+                      Polish
+                    </span>
+                  </button>
+                  <button
+                    onClick={() =>
+                      setState((prev) => ({
+                        ...prev,
+                        settings: { ...prev.settings, language: "en" },
+                      }))
+                    }
+                    className={`flex-1 py-3 rounded-2xl border-2 transition-all flex flex-col items-center justify-center gap-2 ${
+                      state.settings.language === "en"
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-transparent bg-gray-50 opacity-60"
+                    }`}
+                  >
+                    <span
+                      className="fi fi-us"
+                      style={{ fontSize: "1.7rem", borderRadius: "0.375rem" }}
+                    ></span>
+                    <span className="text-xs font-medium text-gray-700">
+                      English
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Profile */}
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
+                  {t.predefinedLabel}
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() =>
+                      setState((prev) => ({
+                        ...prev,
+                        settings: {
+                          ...prev.settings,
+                          sttModel: "browser",
+                          ttsModel: "browser",
+                          enableEmotions: false,
+                          enableTTS: false,
+                        },
+                      }))
+                    }
+                    className={`p-3 rounded-2xl border-2 text-left transition-all ${
+                      activeProfile() === "fast"
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-100 bg-white"
+                    }`}
+                  >
+                    <div className="font-bold text-gray-800 text-sm mb-1">
+                      {t.profileFast}
+                    </div>
+                    <div className="text-[10px] text-gray-500 leading-tight">
+                      {t.profileFastDesc}
+                    </div>
+                  </button>
+                  <button
+                    onClick={() =>
+                      setState((prev) => ({
+                        ...prev,
+                        settings: {
+                          ...prev.settings,
+                          sttModel: "whisper",
+                          ttsModel: "browser",
+                          enableEmotions: true,
+                          enableTTS: true,
+                        },
+                      }))
+                    }
+                    className={`p-3 rounded-2xl border-2 text-left transition-all ${
+                      activeProfile() === "empathetic"
+                        ? "border-purple-500 bg-purple-50"
+                        : "border-gray-100 bg-white"
+                    }`}
+                  >
+                    <div className="font-bold text-gray-800 text-sm mb-1">
+                      {t.profileEmp}
+                    </div>
+                    <div className="text-[10px] text-gray-500 leading-tight">
+                      {t.profileEmpDesc}
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Advanced */}
+              <div className="border-t pt-4">
+                <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">
+                  {t.advancedLabel}
+                </div>
+
+                {/* Checkboxes */}
+                <div className="space-y-3 mb-4">
+                  <label className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                    <span className="text-sm font-medium text-gray-700">
+                      {t.enableTTS}
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={state.settings.enableTTS}
+                      onChange={(e) =>
+                        setState((prev) => ({
+                          ...prev,
+                          settings: {
+                            ...prev.settings,
+                            enableTTS: e.target.checked,
+                          },
+                        }))
+                      }
+                      className="w-5 h-5 accent-blue-600 rounded"
+                    />
+                  </label>
+                  <label
+                    className={`flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 cursor-pointer ${
+                      state.settings.sttModel === "browser" ? "opacity-50" : ""
+                    }`}
+                  >
+                    <div>
+                      <span className="text-sm font-medium text-gray-700 block">
+                        {t.enableEmotions}
+                      </span>
+                      {state.settings.sttModel === "browser" && (
+                        <span className="text-[9px] text-red-500 block">
+                          Wymaga modelu Whisper
+                        </span>
+                      )}
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={state.settings.enableEmotions}
+                      disabled={state.settings.sttModel === "browser"}
+                      onChange={(e) =>
+                        setState((prev) => ({
+                          ...prev,
+                          settings: {
+                            ...prev.settings,
+                            enableEmotions: e.target.checked,
+                          },
+                        }))
+                      }
+                      className="w-5 h-5 accent-purple-600 rounded"
+                    />
+                  </label>
+                </div>
+
+                {/* STT Select */}
+                <div className="mb-3">
+                  <label className="text-xs text-gray-500 font-semibold mb-1 block">
+                    {t.inputModelLabel}
+                  </label>
+                  <div className="flex bg-gray-100 p-1 rounded-lg">
+                    <button
+                      onClick={() =>
+                        setState((prev) => ({
+                          ...prev,
+                          settings: {
+                            ...prev.settings,
+                            sttModel: "browser",
+                            enableEmotions: false,
+                          },
+                        }))
+                      } // Browser wymusza brak emocji
+                      className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-all ${
+                        state.settings.sttModel === "browser"
+                          ? "bg-white shadow text-blue-600"
+                          : "text-gray-500"
+                      }`}
+                    >
+                      Web (Fast)
+                    </button>
+                    <button
+                      onClick={() =>
+                        setState((prev) => ({
+                          ...prev,
+                          settings: { ...prev.settings, sttModel: "whisper" },
+                        }))
+                      }
+                      className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-all ${
+                        state.settings.sttModel === "whisper"
+                          ? "bg-white shadow text-purple-600"
+                          : "text-gray-500"
+                      }`}
+                    >
+                      Whisper (Slow)
+                    </button>
+                  </div>
+                  {state.settings.sttModel === "whisper" && (
+                    <p className="text-[9px] text-orange-500 mt-1 ml-1">
+                      {t.whisperWarning}
+                    </p>
+                  )}
+                </div>
+
+                {/* TTS Select */}
+                <div>
+                  <label className="text-xs text-gray-500 font-semibold mb-1 block">
+                    {t.voiceModelLabel}
+                  </label>
+                  <div className="flex bg-gray-100 p-1 rounded-lg">
+                    <button
+                      onClick={() =>
+                        setState((prev) => ({
+                          ...prev,
+                          settings: { ...prev.settings, ttsModel: "browser" },
+                        }))
+                      }
+                      className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-all ${
+                        state.settings.ttsModel === "browser"
+                          ? "bg-white shadow text-green-600"
+                          : "text-gray-500"
+                      }`}
+                    >
+                      Web (Fast)
+                    </button>
+                    <button
+                      disabled
+                      className="flex-1 py-1.5 rounded-md text-xs font-medium text-gray-300 cursor-not-allowed"
+                    >
+                      Piper
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
