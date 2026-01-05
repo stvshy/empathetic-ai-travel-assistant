@@ -167,36 +167,48 @@ const App: React.FC = () => {
   const speakText = (text: string) => {
     if (!state.settings.enableTTS) return;
 
-    // Zatrzymaj poprzednie mówienie
     window.speechSynthesis.cancel();
 
     const utterance = new SpeechSynthesisUtterance(text);
-    const targetLang = state.settings.language === "pl" ? "pl-PL" : "en-US";
+    const isPolish = state.settings.language === "pl";
+    const targetLang = isPolish ? "pl-PL" : "en-US";
 
     utterance.lang = targetLang;
 
-    // Wybór konkretnego głosu
     if (availableVoices.length > 0) {
-      // Szukamy głosu, który pasuje do języka (pl lub en)
-      const voice = availableVoices.find((v) =>
-        v.lang.includes(state.settings.language === "pl" ? "pl" : "en")
+      // KROK 1: Filtrujemy głosy pasujące do języka
+      const langVoices = availableVoices.filter((v) =>
+        v.lang.includes(isPolish ? "pl" : "en")
       );
 
-      // Jeśli znaleźliśmy dedykowany głos, przypisujemy go
-      if (voice) {
-        utterance.voice = voice;
-        console.log(`Używam głosu: ${voice.name} (${voice.lang})`);
-      } else {
-        console.warn(
-          "Nie znaleziono dedykowanego głosu dla języka:",
-          targetLang
-        );
+      // KROK 2: Szukamy "najlepszego" głosu (Natural > Google > Systemowy)
+      let selectedVoice = langVoices.find(
+        (v) => v.name.includes("Natural") || v.name.includes("Online") // Edge Neural (Najlepsze)
+      );
+
+      if (!selectedVoice) {
+        selectedVoice = langVoices.find((v) => v.name.includes("Google")); // Chrome (Średnie/Dobre)
       }
+
+      if (!selectedVoice) {
+        selectedVoice = langVoices[0]; // Pierwszy z brzegu (Systemowy - słaby)
+      }
+
+      // Przypisanie
+      if (selectedVoice) {
+        utterance.voice = selectedVoice;
+        console.log(`Wybrano głos: ${selectedVoice.name}`);
+      }
+    }
+
+    // Opcjonalnie: Lekkie zwolnienie tempa dla polskiego, żeby brzmiał naturalniej
+    if (isPolish) {
+      utterance.rate = 0.95;
+      utterance.pitch = 1.0;
     }
 
     window.speechSynthesis.speak(utterance);
   };
-
   // --- ACTIONS ---
   const handleNewChat = () => {
     const greeting =
