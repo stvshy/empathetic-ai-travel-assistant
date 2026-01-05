@@ -1,0 +1,10 @@
+Start:
+docker compose up -d  
+
+End:
+docker compose down -v
+
+
+LOKALNIE:
+python app.py
+npr run dev

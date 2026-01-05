@@ -1,0 +1,13 @@
+Flask
+Flask-Cors
+python-dotenv
+openai-whisper
+transformers
+# Magiczne linie wymuszające wersję lekką (CPU)
+torch --index-url https://download.pytorch.org/whl/cpu
+torchaudio --index-url https://download.pytorch.org/whl/cpu
+# Reszta bibliotek
+librosa
+google-generativeai
+ffmpeg-python
+numpy
