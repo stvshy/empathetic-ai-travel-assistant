@@ -72,7 +72,7 @@ def generate_gemini_response(user_text, language="pl", emotion=None):
 
     try:
         response = client.models.generate_content(
-            model='gemini-2.0-flash-exp', # Zmienione na 2.0 Flash (szybszy/stabilny w API)
+            model='gemini-3-flash-preview', # Zmienione na 2.0 Flash (szybszy/stabilny w API)
             contents=final_input,
             config=types.GenerateContentConfig(
                 system_instruction=system_instruction,
