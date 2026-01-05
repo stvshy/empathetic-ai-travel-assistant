@@ -106,7 +106,25 @@ const App: React.FC = () => {
       enableTTS: false,
     },
   });
+  const [availableVoices, setAvailableVoices] = useState<
+    SpeechSynthesisVoice[]
+  >([]);
+  // Dodaj ten useEffect, aby załadować głosy po uruchomieniu aplikacji
+  useEffect(() => {
+    const loadVoices = () => {
+      const voices = window.speechSynthesis.getVoices();
+      setAvailableVoices(voices);
+    };
 
+    loadVoices();
+
+    // Chrome ładuje głosy asynchronicznie, więc musimy nasłuchiwać zdarzenia
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+
+    return () => {
+      window.speechSynthesis.onvoiceschanged = null;
+    };
+  }, []);
   const [inputText, setInputText] = useState("");
   const [interimTranscript, setInterimTranscript] = useState("");
 
@@ -149,9 +167,33 @@ const App: React.FC = () => {
   const speakText = (text: string) => {
     if (!state.settings.enableTTS) return;
 
+    // Zatrzymaj poprzednie mówienie
     window.speechSynthesis.cancel();
+
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = state.settings.language === "pl" ? "pl-PL" : "en-US";
+    const targetLang = state.settings.language === "pl" ? "pl-PL" : "en-US";
+
+    utterance.lang = targetLang;
+
+    // Wybór konkretnego głosu
+    if (availableVoices.length > 0) {
+      // Szukamy głosu, który pasuje do języka (pl lub en)
+      const voice = availableVoices.find((v) =>
+        v.lang.includes(state.settings.language === "pl" ? "pl" : "en")
+      );
+
+      // Jeśli znaleźliśmy dedykowany głos, przypisujemy go
+      if (voice) {
+        utterance.voice = voice;
+        console.log(`Używam głosu: ${voice.name} (${voice.lang})`);
+      } else {
+        console.warn(
+          "Nie znaleziono dedykowanego głosu dla języka:",
+          targetLang
+        );
+      }
+    }
+
     window.speechSynthesis.speak(utterance);
   };
 
@@ -267,7 +309,6 @@ const App: React.FC = () => {
   }, [state.settings.language, state.settings.sttModel]);
 
   // --- RECORDING ---
-  <span className="absolute inset-0 w-full h-full rounded-full border border-gray-300"></span>;
   const startRecording = async () => {
     setState((prev) => ({ ...prev, isRecording: true, error: null }));
 
