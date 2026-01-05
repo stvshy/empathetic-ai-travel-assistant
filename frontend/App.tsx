@@ -7,6 +7,7 @@ const TRANSLATIONS = {
   pl: {
     title: "Asystent Podróży",
     available: "Dostępny",
+    unavailable: "Niedostępny",
     inputPlaceholder: "Napisz wiadomość...",
     listening: "Słucham...",
     processing: "Przetwarzam...",
@@ -34,6 +35,7 @@ const TRANSLATIONS = {
   en: {
     title: "Travel Assistant",
     available: "Available",
+    unavailable: "Unavailable",
     inputPlaceholder: "Type a message...",
     listening: "Listening...",
     processing: "Processing...",
@@ -135,7 +137,30 @@ const App: React.FC = () => {
   const recognitionRef = useRef<any>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const [isBackendConnected, setIsBackendConnected] = useState(false);
 
+  // Funkcja sprawdzająca "zdrowie" serwera
+  useEffect(() => {
+    const checkConnection = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/health");
+        if (res.ok) {
+          setIsBackendConnected(true);
+        } else {
+          setIsBackendConnected(false);
+        }
+      } catch (err) {
+        setIsBackendConnected(false);
+      }
+    };
+
+    // Sprawdź od razu po załadowaniu
+    checkConnection();
+
+    // Opcjonalnie: Sprawdzaj co 30 sekund (żeby status się zaktualizował jak padnie serwer)
+    const interval = setInterval(checkConnection, 30000);
+    return () => clearInterval(interval);
+  }, []);
   // Initial Greeting
   useEffect(() => {
     const greeting =
@@ -162,6 +187,14 @@ const App: React.FC = () => {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [state.messages, state.isProcessing, interimTranscript]);
+
+  useEffect(() => {
+    // Jeśli użytkownik wyłączył TTS (z true na false)
+    if (!state.settings.enableTTS) {
+      console.log("TTS wyłączony - przerywam mówienie.");
+      window.speechSynthesis.cancel(); // <- To jest ten hamulec ręczny
+    }
+  }, [state.settings.enableTTS]); // Tablica zależności: uruchom to tylko gdy zmieni się enableTTS
 
   // --- TTS ---
   const speakText = (text: string) => {
@@ -430,10 +463,20 @@ const App: React.FC = () => {
             {/* Tytuł: powrót do text-lg */}
             <h1 className="font-bold text-gray-800 text-lg">{t.title}</h1>
 
-            {/* Status: powrót do text-xs, usunięcie uppercase i tracking-wider */}
-            <p className="text-xs text-green-500 font-medium flex items-center gap-1">
-              <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
-              {t.available}
+            {/* Status Zmienny */}
+            <p
+              className={`text-xs font-medium flex items-center gap-1 ${
+                isBackendConnected ? "text-green-500" : "text-red-500"
+              }`}
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  isBackendConnected
+                    ? "bg-green-500 animate-pulse"
+                    : "bg-red-500"
+                }`}
+              ></span>
+              {isBackendConnected ? t.available : t.unavailable}
             </p>
           </div>
         </div>
