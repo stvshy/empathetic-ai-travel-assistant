@@ -14,12 +14,12 @@ const TRANSLATIONS = {
     micError: "Błąd mikrofonu",
     backendError: "Błąd backendu.",
     settingsTitle: "Ustawienia",
-    langLabel: "Język / Language",
+    langLabel: "Język",
     predefinedLabel: "Szybkie Profile",
     advancedLabel: "Zaawansowane",
     inputModelLabel: "Model Rozpoznawania Mowy (STT)",
     voiceModelLabel: "Model Głosu (TTS)",
-    whisperWarning: "⚠ Wydłuża czas odpowiedzi (przesył audio)",
+    whisperWarning: "Whisper znacząco wydłuża czas odpowiedzi (przesył audio)",
     webDesc: "Szybki, brak emocji",
     whisperDesc: "Wolniejszy, dokładniejszy",
     featuresLabel: "Funkcje",
@@ -46,7 +46,8 @@ const TRANSLATIONS = {
     advancedLabel: "Advanced Settings",
     inputModelLabel: "Input Model (STT)",
     voiceModelLabel: "Voice Model (TTS)",
-    whisperWarning: "⚠ Increases response time (audio upload)",
+    whisperWarning:
+      "Whisper significantly increases response time (audio transmission)",
     webDesc: "Fast, no emotions",
     whisperDesc: "Slower, more accurate",
     featuresLabel: "Features",
@@ -98,7 +99,7 @@ const App: React.FC = () => {
     error: null,
     showSettings: false,
     settings: {
-      language: "pl",
+      language: "en",
       sttModel: "browser",
       ttsModel: "browser",
       enableEmotions: false,
@@ -266,6 +267,7 @@ const App: React.FC = () => {
   }, [state.settings.language, state.settings.sttModel]);
 
   // --- RECORDING ---
+  <span className="absolute inset-0 w-full h-full rounded-full border border-gray-300"></span>;
   const startRecording = async () => {
     setState((prev) => ({ ...prev, isRecording: true, error: null }));
 
@@ -575,27 +577,6 @@ const App: React.FC = () => {
                     onClick={() =>
                       setState((prev) => ({
                         ...prev,
-                        settings: { ...prev.settings, language: "pl" },
-                      }))
-                    }
-                    className={`flex-1 py-3 rounded-2xl border-2 transition-all flex flex-col items-center justify-center gap-2 ${
-                      state.settings.language === "pl"
-                        ? "border-blue-500 bg-blue-50"
-                        : "border-transparent bg-gray-50 opacity-60"
-                    }`}
-                  >
-                    <span
-                      className="fi fi-pl"
-                      style={{ fontSize: "1.7rem", borderRadius: "0.375rem" }}
-                    ></span>
-                    <span className="text-xs font-medium text-gray-700">
-                      Polish
-                    </span>
-                  </button>
-                  <button
-                    onClick={() =>
-                      setState((prev) => ({
-                        ...prev,
                         settings: { ...prev.settings, language: "en" },
                       }))
                     }
@@ -611,6 +592,27 @@ const App: React.FC = () => {
                     ></span>
                     <span className="text-xs font-medium text-gray-700">
                       English
+                    </span>
+                  </button>
+                  <button
+                    onClick={() =>
+                      setState((prev) => ({
+                        ...prev,
+                        settings: { ...prev.settings, language: "pl" },
+                      }))
+                    }
+                    className={`flex-1 py-3 rounded-2xl border-2 transition-all flex flex-col items-center justify-center gap-2 ${
+                      state.settings.language === "pl"
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-transparent bg-gray-50 opacity-60"
+                    }`}
+                  >
+                    <span
+                      className="fi fi-pl"
+                      style={{ fontSize: "1.7rem", borderRadius: "0.375rem" }}
+                    ></span>
+                    <span className="text-xs font-medium text-gray-700">
+                      Polish
                     </span>
                   </button>
                 </div>
@@ -683,11 +685,37 @@ const App: React.FC = () => {
                   {t.advancedLabel}
                 </div>
 
-                {/* Checkboxes */}
-                <div className="space-y-3 mb-4">
-                  <label className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                {/* Feature Toggles */}
+                <div className="mb-4 border border-gray-200 rounded-2xl bg-white">
+                  <label className="flex items-center justify-between px-3 py-2 rounded-t-2xl cursor-pointer hover:bg-gray-50 gap-3">
                     <span className="text-sm font-medium text-gray-700">
                       {t.enableTTS}
+                    </span>
+                    <span
+                      className={`w-5 h-5 flex items-center justify-center rounded-full border transition-colors ${
+                        state.settings.enableTTS
+                          ? "bg-green-500 border-green-500"
+                          : "bg-white border-gray-300"
+                      }`}
+                    >
+                      <svg
+                        viewBox="0 0 16 16"
+                        className={`w-3.5 h-3.5 ${
+                          state.settings.enableTTS
+                            ? "text-white"
+                            : "text-transparent"
+                        }`}
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          d="M4 8.5L7 11.5L12 5.5"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
                     </span>
                     <input
                       type="checkbox"
@@ -701,11 +729,14 @@ const App: React.FC = () => {
                           },
                         }))
                       }
-                      className="w-5 h-5 accent-blue-600 rounded"
+                      className="sr-only"
                     />
                   </label>
+
+                  <div className="border-t border-gray-200" />
+
                   <label
-                    className={`flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 cursor-pointer ${
+                    className={`flex items-center justify-between px-3 py-2 rounded-b-2xl cursor-pointer hover:bg-gray-50 gap-3 ${
                       state.settings.sttModel === "browser" ? "opacity-50" : ""
                     }`}
                   >
@@ -719,6 +750,32 @@ const App: React.FC = () => {
                         </span>
                       )}
                     </div>
+                    <span
+                      className={`w-5 h-5 flex items-center justify-center rounded-full border transition-colors ${
+                        state.settings.enableEmotions
+                          ? "bg-purple-600 border-purple-600"
+                          : "bg-white border-gray-300"
+                      }`}
+                    >
+                      <svg
+                        viewBox="0 0 16 16"
+                        className={`w-3.5 h-3.5 ${
+                          state.settings.enableEmotions
+                            ? "text-white"
+                            : "text-transparent"
+                        }`}
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          d="M4 8.5L7 11.5L12 5.5"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </span>
                     <input
                       type="checkbox"
                       checked={state.settings.enableEmotions}
@@ -732,7 +789,7 @@ const App: React.FC = () => {
                           },
                         }))
                       }
-                      className="w-5 h-5 accent-purple-600 rounded"
+                      className="sr-only"
                     />
                   </label>
                 </div>
@@ -756,7 +813,7 @@ const App: React.FC = () => {
                       } // Browser wymusza brak emocji
                       className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-all ${
                         state.settings.sttModel === "browser"
-                          ? "bg-white shadow text-blue-600"
+                          ? "bg-white shadow text-blue-500"
                           : "text-gray-500"
                       }`}
                     >
@@ -779,7 +836,7 @@ const App: React.FC = () => {
                     </button>
                   </div>
                   {state.settings.sttModel === "whisper" && (
-                    <p className="text-[9px] text-orange-500 mt-1 ml-1">
+                    <p className="text-[9.5px] text-orange-500 mt-1 ml-1">
                       {t.whisperWarning}
                     </p>
                   )}
@@ -800,7 +857,7 @@ const App: React.FC = () => {
                       }
                       className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-all ${
                         state.settings.ttsModel === "browser"
-                          ? "bg-white shadow text-green-600"
+                          ? "bg-white shadow text-blue-500"
                           : "text-gray-500"
                       }`}
                     >
