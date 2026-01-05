@@ -534,7 +534,7 @@ const App: React.FC = () => {
                   enableEmotions: !prev.settings.enableEmotions,
                   sttModel: !prev.settings.enableEmotions
                     ? "whisper"
-                    : prev.settings.sttModel,
+                    : "browser",
                 },
               }))
             }
