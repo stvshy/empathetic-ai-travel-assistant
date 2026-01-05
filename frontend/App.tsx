@@ -796,10 +796,10 @@ const App: React.FC = () => {
 
                 {/* STT Select */}
                 <div className="mb-3">
-                  <label className="text-xs text-gray-500 font-semibold mb-1 block">
+                  <label className="text-[13px] text-gray-500 font-semibold mb-1 block">
                     {t.inputModelLabel}
                   </label>
-                  <div className="flex bg-gray-100 p-1 rounded-lg">
+                  <div className="flex bg-gray-100 p-1 rounded-lg min-h-[44px]">
                     <button
                       onClick={() =>
                         setState((prev) => ({
@@ -811,7 +811,7 @@ const App: React.FC = () => {
                           },
                         }))
                       } // Browser wymusza brak emocji
-                      className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-all ${
+                      className={`flex-1 py-1.5 rounded-md text-[13px] font-medium transition-all ${
                         state.settings.sttModel === "browser"
                           ? "bg-white shadow text-blue-500"
                           : "text-gray-500"
@@ -826,7 +826,7 @@ const App: React.FC = () => {
                           settings: { ...prev.settings, sttModel: "whisper" },
                         }))
                       }
-                      className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-all ${
+                      className={`flex-1 py-1.5 rounded-md text-[13px] font-medium transition-all ${
                         state.settings.sttModel === "whisper"
                           ? "bg-white shadow text-purple-600"
                           : "text-gray-500"
@@ -836,7 +836,7 @@ const App: React.FC = () => {
                     </button>
                   </div>
                   {state.settings.sttModel === "whisper" && (
-                    <p className="text-[9.5px] text-orange-500 mt-1 ml-1">
+                    <p className="text-[10px] text-orange-500 mt-1 ml-1">
                       {t.whisperWarning}
                     </p>
                   )}
@@ -844,10 +844,10 @@ const App: React.FC = () => {
 
                 {/* TTS Select */}
                 <div>
-                  <label className="text-xs text-gray-500 font-semibold mb-1 block">
+                  <label className="text-[13px] text-gray-500 font-semibold mb-1 block">
                     {t.voiceModelLabel}
                   </label>
-                  <div className="flex bg-gray-100 p-1 rounded-lg">
+                  <div className="flex bg-gray-100 p-1 rounded-lg min-h-[44px]">
                     <button
                       onClick={() =>
                         setState((prev) => ({
@@ -855,7 +855,7 @@ const App: React.FC = () => {
                           settings: { ...prev.settings, ttsModel: "browser" },
                         }))
                       }
-                      className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-all ${
+                      className={`flex-1 py-1.5 rounded-md text-[13px] font-medium transition-all ${
                         state.settings.ttsModel === "browser"
                           ? "bg-white shadow text-blue-500"
                           : "text-gray-500"
