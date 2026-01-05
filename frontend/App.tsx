@@ -454,6 +454,18 @@ const App: React.FC = () => {
     <div className="flex flex-col h-screen max-w-2xl mx-auto bg-white shadow-2xl relative overflow-hidden">
       {" "}
       {/* --- HEADER --- */}
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background-color: rgba(156, 163, 175, 0.5);
+          border-radius: 20px;
+        }
+      `}</style>
       <header className="bg-white border-b px-6 py-4 flex items-center justify-between z-10">
         <div className="flex items-center gap-3">
           <div className="bg-blue-100 p-2 rounded-xl text-blue-600">
@@ -597,7 +609,7 @@ const App: React.FC = () => {
           <button
             onClick={state.isRecording ? stopRecording : startRecording}
             className={`
-              h-12 w-12 rounded-full flex-shrink-0 flex items-center justify-center transition-all shadow-md
+              h-14 w-14 rounded-full flex-shrink-0 flex items-center justify-center transition-all shadow-md
               ${
                 state.isRecording
                   ? "bg-red-500 shadow-red-200 animate-pulse"
@@ -609,31 +621,33 @@ const App: React.FC = () => {
           >
             <i
               className={`fas ${
-                state.isRecording ? "fa-stop" : "fa-microphone text-lg"
+                state.isRecording ? "fa-stop" : "fa-microphone text-xl"
               }`}
             ></i>
           </button>
 
-          <div className="flex-1 h-12 bg-gray-100 rounded-full px-5 flex items-center transition-all relative overflow-hidden">
+          <div className="flex-1 h-14 bg-gray-100 rounded-full px-5 flex items-center transition-all relative overflow-hidden">
             {state.isRecording ? (
               <SoundWave />
             ) : (
               <>
-                <input
-                  type="text"
+                <textarea
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
-                  onKeyDown={(e) =>
-                    e.key === "Enter" && handleSendMessage(inputText)
-                  }
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendMessage(inputText);
+                    }
+                  }}
                   placeholder={t.inputPlaceholder}
-                  className="bg-transparent w-full h-full outline-none text-gray-700 placeholder-gray-400 text-sm"
+                  className="bg-transparent w-full h-full outline-none text-gray-700 placeholder-gray-400 text-sm resize-none py-4 pr-3 overflow-y-auto custom-scrollbar"
                 />
                 <button
                   onClick={() => handleSendMessage(inputText)}
                   className="text-blue-600 hover:text-blue-800 ml-2"
                 >
-                  <i className="fas fa-paper-plane"></i>
+                  <i className="fas fa-paper-plane text-xl"></i>
                 </button>
               </>
             )}
