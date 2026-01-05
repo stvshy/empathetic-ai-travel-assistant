@@ -70,22 +70,24 @@ interface IWindow extends Window {
 
 // --- KOMPONENT: Animacja Fali ---
 const SoundWave: React.FC = () => (
-  <div className="flex items-center justify-center gap-1 h-full w-full">
-    {[...Array(5)].map((_, i) => (
-      <div
-        key={i}
-        className="w-1.5 bg-blue-500 rounded-full animate-wave"
-        style={{
-          animationDelay: `${i * 0.1}s`,
-          height: "40%",
-          animation: "wave 1s ease-in-out infinite",
-        }}
-      ></div>
-    ))}
+  <div className="flex items-center justify-center h-full w-full">
+    <div className="flex items-center justify-between w-[80%] h-full">
+      {[...Array(20)].map((_, i) => (
+        <div
+          key={i}
+          className="w-1 bg-blue-500 rounded-full animate-wave"
+          style={{
+            height: "10%",
+            animation: "wave 1.2s ease-in-out infinite",
+            animationDelay: `${i * 0.05}s`,
+          }}
+        ></div>
+      ))}
+    </div>
     <style>{`
       @keyframes wave {
-        0%, 100% { height: 30%; opacity: 0.5; }
-        50% { height: 100%; opacity: 1; }
+        0%, 100% { height: 10%; opacity: 0.4; }
+        50% { height: 60%; opacity: 1; }
       }
     `}</style>
   </div>
