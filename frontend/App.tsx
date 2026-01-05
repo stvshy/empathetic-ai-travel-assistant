@@ -20,12 +20,14 @@ const TRANSLATIONS = {
     advancedLabel: "Zaawansowane",
     inputModelLabel: "Model Rozpoznawania Mowy (STT)",
     voiceModelLabel: "Model Głosu (TTS)",
-    whisperWarning: "Whisper znacząco wydłuża czas odpowiedzi (przesył audio)",
+    whisperWarning:
+      "Whisper wydłuża czas odpowiedzi i wymaga wciśnięcia przycisku, kiedy skończysz mówić (nie działa automatycznie)",
     webDesc: "Szybki, brak emocji",
     whisperDesc: "Wolniejszy, dokładniejszy",
     featuresLabel: "Funkcje",
     enableEmotions: "Wykrywanie Emocji",
     enableTTS: "Czytanie Wiadomości (TTS)",
+    recordingStart: "Jeśli skończysz mówić wciśnij czerwony przycisk na dole",
     profileFast: "Szybki ⚡",
     profileFastDesc: "Przeglądarka • Bez Emocji",
     profileEmp: "Empatyczny ❤️",
@@ -49,12 +51,14 @@ const TRANSLATIONS = {
     inputModelLabel: "Input Model (STT)",
     voiceModelLabel: "Voice Model (TTS)",
     whisperWarning:
-      "Whisper significantly increases response time (audio transmission)",
+      "Whisper increases response time and requires you to press a button when you finish speaking (it doesn't work automatically)",
     webDesc: "Fast, no emotions",
     whisperDesc: "Slower, more accurate",
     featuresLabel: "Features",
     enableEmotions: "Emotion Detection",
     enableTTS: "Read Messages (TTS)",
+    recordingStart:
+      "When you finish speaking press the red button at the bottom",
     profileFast: "Fast ⚡",
     profileFastDesc: "Browser • No Emotions",
     profileEmp: "Empathetic ❤️",
@@ -578,6 +582,14 @@ const App: React.FC = () => {
           <ChatBubble key={msg.id} message={msg} />
         ))}
 
+        {state.isRecording && state.settings.sttModel !== "browser" && (
+          <div className="flex justify-end mb-4">
+            <div className="max-w-[80%] rounded-2xl px-4 py-3 bg-gray-100 text-gray-500 rounded-tr-none border border-gray-200 opacity-80 italic">
+              <p className="text-sm">{t.recordingStart}</p>
+            </div>
+          </div>
+        )}
+
         {interimTranscript && (
           <div className="flex justify-end mb-4">
             <div className="max-w-[80%] rounded-2xl px-4 py-3 bg-gray-100 text-gray-500 rounded-tr-none border border-gray-200 opacity-80 italic">
@@ -623,7 +635,11 @@ const App: React.FC = () => {
           >
             <i
               className={`fas ${
-                state.isRecording ? "fa-stop" : "fa-microphone text-xl"
+                state.isRecording
+                  ? state.settings.sttModel !== "browser"
+                    ? "fa-paper-plane text-xl"
+                    : "fa-stop"
+                  : "fa-microphone text-xl"
               }`}
             ></i>
           </button>
