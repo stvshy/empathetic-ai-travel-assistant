@@ -1,15 +1,16 @@
-
 import { GoogleGenAI } from "@google/genai";
 
 const API_KEY = process.env.API_KEY || "";
 
-export const generateTravelResponse = async (prompt: string): Promise<string> => {
+export const generateTravelResponse = async (
+  prompt: string
+): Promise<string> => {
   if (!API_KEY) {
     throw new Error("Missing Gemini API Key");
   }
 
   const ai = new GoogleGenAI({ apiKey: API_KEY });
-  
+
   const systemInstruction = `
     ROLA:
     Jesteś Osobistym Architektem Podróży. Twoim zadaniem nie jest sprzedaż, ale wspólne z użytkownikiem zbudowanie planu idealnego.
@@ -30,7 +31,7 @@ export const generateTravelResponse = async (prompt: string): Promise<string> =>
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: "gemini-flash-lite-latest",
       contents: prompt,
       config: {
         systemInstruction: systemInstruction,

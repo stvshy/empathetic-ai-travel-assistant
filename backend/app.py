@@ -72,7 +72,7 @@ def generate_gemini_response(user_text, language="pl", emotion=None):
 
     try:
         response = client.models.generate_content(
-            model='gemini-3-flash-preview', # Zmienione na 2.0 Flash (szybszy/stabilny w API)
+            model='gemini-flash-lite-latest', # Zmienione na 2.0 Flash (szybszy/stabilny w API)
             contents=final_input,
             config=types.GenerateContentConfig(
                 system_instruction=system_instruction,
@@ -140,6 +140,23 @@ def process_audio():
     finally:
         if os.path.exists(webm_path): os.remove(webm_path)
         if os.path.exists(wav_path): os.remove(wav_path)
+
+# --- ENDPOINT 3: HEALTH CHECK (Wersja Pasywna - Bezpieczna dla limitów) ---
+@app.route("/health", methods=["GET"])
+def health_check():
+    # Sprawdzamy tylko, czy klucz API jest wczytany
+    if not API_KEY:
+        return jsonify({
+            "status": "online", 
+            "llm_status": "error", 
+            "message": "Missing API Key"
+        }), 500
+    
+    return jsonify({
+        "status": "online", 
+        "llm_status": "ready", 
+        "model": "Gemini Flash Lite (Check skipped to save quota)"
+    }), 200
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
