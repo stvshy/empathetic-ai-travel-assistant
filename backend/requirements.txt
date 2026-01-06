@@ -8,6 +8,6 @@ torch --index-url https://download.pytorch.org/whl/cpu
 torchaudio --index-url https://download.pytorch.org/whl/cpu
 # Reszta bibliotek
 librosa
-google-generativeai
+google-genai
 ffmpeg-python
 numpy

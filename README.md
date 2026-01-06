@@ -10,6 +10,27 @@
 
 > **Your personal travel planner that senses your emotions.**
 
+<!-- --- SCREENSHOTS SECTION START --- -->
+<div align="center">
+  <h3>📸 Interface Preview</h3>
+  <table style="border: none;">
+    <tr>
+      <td align="center" style="border: none;">
+        <img src="assets/travel-ai-1.png" alt="img1" width="100%" style="border-radius: 10px;"/>
+        <br />
+        <sub>Conversation</sub>
+      </td>
+      <td align="center" style="border: none;">
+        <img src="assets/travel-ai-2.png" alt="img2" width="100%" style="border-radius: 10px;"/>
+        <br />
+        <sub>Settings</sub>
+      </td>
+    </tr>
+  </table>
+</div>
+<br />
+<!-- --- SCREENSHOTS SECTION END --- -->
+
 ## 📖 About The Project
 
 This project is an AI-powered travel assistant designed to plan the perfect trip based on your preferences, budget, and logistical needs.
@@ -61,7 +82,7 @@ Follow these steps to get the project running on your local machine.
    ```
 
 2. **Configure Environment Variables**
-   Create a file named `.env.local` in the root directory and add your API key:
+   Create a file named `.env` in the root directory and add your API key:
 
    ```env
    GEMINI_API_KEY=AIzaSy...Your_Actual_Key_Here
@@ -94,13 +115,17 @@ Use this if you want to modify the code or if Docker is too heavy for your syste
 cd backend
 # Create virtual environment (optional)
 python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+
+# Activate Virtual Environment:
+# Windows:
+venv\Scripts\activate
+# Mac/Linux:
+source venv/bin/activate
 
 # Install dependencies (ffmpeg must be installed in your OS!)
 pip install -r requirements.txt
 
 # Run Server
-# (Make sure .env is in backend/ folder or GEMINI_API_KEY is set)
 python app.py
 ```
 
@@ -108,6 +133,10 @@ python app.py
 Open a new terminal:
 ```bash
 cd frontend
+
+# Windows PowerShell only (if script errors occur):
+Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
+
 npm install
 npm run dev
 ```
