@@ -1,7 +1,0 @@
-{
-  "name": "Empatyczny Asystent Podróży - Sprint 1",
-  "description": "Voice-enabled personal travel architect that uses AI to plan trips based on user input and emotions.",
-  "requestFramePermissions": [
-    "microphone"
-  ]
-}
