@@ -16,14 +16,12 @@
   <table style="border: none;">
     <tr>
       <td align="center" style="border: none;">
-        <img src="assets/travel-ai-1.png" alt="img1" width="100%" style="border-radius: 10px;"/>
+        <img src="assets/travel-ai-1.png" alt="img1" width="100%" style="border-radius: 3px;"/>
         <br />
-        <sub>Conversation</sub>
       </td>
       <td align="center" style="border: none;">
-        <img src="assets/travel-ai-2.png" alt="img2" width="100%" style="border-radius: 10px;"/>
+        <img src="assets/travel-ai-2.png" alt="img2" width="100%" style="border-radius: 3px;"/>
         <br />
-        <sub>Settings</sub>
       </td>
     </tr>
   </table>
