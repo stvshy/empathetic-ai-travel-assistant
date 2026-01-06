@@ -1,7 +1,7 @@
 # ✈️ Empathetic AI Travel Assistant
 
 <div align="center">
-  <img src="https://img.shields.io/badge/Sprint-2_Completed-success" alt="Sprint Status" />
+  <img src="https://img.shields.io/badge/Sprint-3_Completed-success" alt="Sprint Status" />
   <img src="https://img.shields.io/badge/Stack-React_|_TypeScript_|_Vite-blue" alt="Tech Stack" />
   <img src="https://img.shields.io/badge/AI-Gemini_Flash_Lite_Latest-orange" alt="AI Model" />
 </div>
