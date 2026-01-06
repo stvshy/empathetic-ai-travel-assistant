@@ -252,8 +252,8 @@ const App: React.FC = () => {
   const handleNewChat = () => {
     const greeting =
       state.settings.language === "pl"
-        ? "Cześć! Gdzie chcesz lecieć?"
-        : "Hi! Where do you want to fly?";
+        ? "Cześć! Gdzie chciałbyś się wybrać?"
+        : "Hi! Where do you want to go?";
     setState((prev) => ({
       ...prev,
       messages: [
