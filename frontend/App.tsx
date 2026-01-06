@@ -171,8 +171,8 @@ const App: React.FC = () => {
   useEffect(() => {
     const greeting =
       state.settings.language === "pl"
-        ? "Cześć! Gdzie chcesz lecieć?"
-        : "Hi! Where do you want to fly?";
+        ? "Cześć! Gdzie chcesz się wybrać?"
+        : "Hi! Where do you want to go?";
 
     if (state.messages.length === 0 || state.messages[0].id === "init") {
       setState((prev) => ({

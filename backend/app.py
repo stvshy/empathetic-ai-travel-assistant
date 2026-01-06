@@ -5,7 +5,7 @@ import os
 import tempfile
 import subprocess
 from dotenv import load_dotenv
-
+import numpy as np
 # --- NOWA BIBLIOTEKA ---
 from google import genai
 from google.genai import types
@@ -104,7 +104,26 @@ stt_model = whisper.load_model("base")
 
 print("⏳ Ładowanie modelu Emocji (Wav2Vec)...")
 emotion_classifier = pipeline("audio-classification", model="superb/wav2vec2-base-superb-er")
-print("✅ Modele gotowe!")
+
+# --- START: WARM-UP (ROZGRZEWKA MODELI) ---
+# Przepuszczamy "ciszę" przez modele, żeby załadowały się do pamięci TERAZ, a nie przy pierwszym zapytaniu użytkownika.
+print("🔥 Rozgrzewanie modeli (Ghost Run)...")
+try:
+    # Generujemy 1 sekundę ciszy (16000 próbek, bo tyle wymaga Whisper/Wav2Vec)
+    dummy_audio = np.zeros(16000, dtype=np.float32)
+
+    # 1. Przepuszczamy ducha przez Whisper
+    stt_model.transcribe(dummy_audio, language="pl")
+    
+    # 2. Przepuszczamy ducha przez Wav2Vec
+    emotion_classifier(dummy_audio)
+    
+    print("🚀 Modele rozgrzane i gotowe do akcji w milisekundach!")
+except Exception as e:
+    print(f"⚠️ Ostrzeżenie: Nie udało się rozgrzać modeli (błąd: {e})")
+# --- KONIEC WARM-UP ---
+
+print("✅ Backend gotowy!")
 
 def generate_gemini_response(user_text, language="pl", emotion=None):
     """
