@@ -65,53 +65,54 @@ Follow these steps to get the project running on your local machine.
 
 ### Prerequisites
 
+- **Node.js** (Version 18+ or 20+).
+- **Python** (Version 3.10+).
 - A valid **Google Gemini API Key** (Get it for free [here](https://aistudio.google.com/app/apikey)).
-- **Docker Desktop** (for Docker method) OR **Node.js** [18+ or 20+] **& Python** [v3.10+] (for Local method).
+- *Optional:* **FFmpeg** installed on your system.
+  *(The automatic script will try to install a portable version if you don't have it, but having it installed system-wide is recommended).*
 
-
-### Installation & Startup
+### Installation
 
 1. **Clone the repository**
 
    ```bash
    git clone https://github.com/stvshy/empathetic-ai-travel-assistant.git
    cd empathetic-ai-travel-assistant
-
    ```
 
 2. **Configure Environment Variables**
-   Create a file named `.env` in the root directory and add your API key:
+   Create a file named `.env` in the `backend` directory (or root) and add your API key:
 
    ```env
    GEMINI_API_KEY=AIzaSy...Your_Actual_Key_Here
    ```
 
-### 🐳 Option 1: Quick Start (Docker)
+---
 
-3.  **Run with Docker Compose:**
-    ```bash
-    docker compose up -d
-    ```
-    *(The first run will take a few minutes to download AI models).*
+### ⚡ Option 1: One-Click Start (Windows Recommended)
 
-4.  **Open in Browser:**
-    Go to `http://localhost:3000`.
+The project includes a smart script that sets up the virtual environment, installs dependencies (including FFmpeg if missing), and launches both servers automatically.
 
-5.  **Stop:**
-    ```bash
-    docker compose down
-    ```
+1. **Run the script:**
+   Double-click `start.bat` in the file explorer, or run it via terminal in the project folder:
+   ```powershell
+   .\start.bat
+   ```
+
+2. **That's it!**
+   Two terminal windows will open (Backend & Frontend). The app will open in your browser at `http://localhost:3000`.
 
 ---
 
-### 🛠️ Option 2: Run Locally (Manual)
+### 🛠️ Option 2: Manual Setup (Mac/Linux/Windows)
 
-Use this if you want to modify the code or if Docker is too heavy for your system.
+Use this method if you are on macOS/Linux or prefer to have full control over the execution.
 
-#### 3. Backend Setup
+#### 1. Backend Setup
 ```bash
 cd backend
-# Create virtual environment (optional)
+
+# Create virtual environment
 python -m venv venv
 
 # Activate Virtual Environment:
@@ -120,15 +121,15 @@ venv\Scripts\activate
 # Mac/Linux:
 source venv/bin/activate
 
-# Install dependencies (ffmpeg must be installed in your OS!)
+# Install dependencies
 pip install -r requirements.txt
 
 # Run Server
 python app.py
 ```
 
-#### 4. Frontend Setup
-Open a new terminal:
+#### 2. Frontend Setup
+Open a new terminal window:
 ```bash
 cd frontend
 

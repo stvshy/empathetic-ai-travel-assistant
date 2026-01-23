@@ -6,7 +6,15 @@ import tempfile
 import subprocess
 from dotenv import load_dotenv
 import numpy as np
-# --- NOWA BIBLIOTEKA ---
+# --- SMART FFMPEG LOADING ---
+try:
+    import static_ffmpeg
+    static_ffmpeg.add_paths()
+    print("ℹ️  Loaded static-ffmpeg package.")
+except ImportError:
+    print("ℹ️  Using system FFmpeg (static-ffmpeg not installed).")
+# ----------------------------
+
 from google import genai
 from google.genai import types
 
@@ -183,7 +191,11 @@ def process_audio():
     wav_path = webm_path.replace(".webm", ".wav")
     
     try:
-        subprocess.run(["ffmpeg", "-y", "-i", webm_path, "-ac", "1", "-ar", "16000", wav_path], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(
+            ["ffmpeg", "-y", "-i", webm_path, "-ac", "1", "-ar", "16000", wav_path], 
+            check=True, 
+            stdout=subprocess.DEVNULL # to można zostawić wyciszone
+        )
         
         # 1. Transkrypcja (Whisper)
         # Wybór języka dla Whispera
@@ -202,9 +214,12 @@ def process_audio():
             "response": ai_response,
             "emotion_detected": top_emotion
         })
-    except Exception as e:
-        logger.error(f"Error: {e}")
-        return jsonify({"error": str(e)}), 500
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Błąd FFmpeg: {e}")
+        return jsonify({"error": "Błąd konwersji audio (FFmpeg)"}), 500
+    except FileNotFoundError:
+        logger.error("Nie znaleziono programu FFmpeg w systemie!")
+        return jsonify({"error": "Serwer nie ma zainstalowanego FFmpeg"}), 500
     finally:
         if os.path.exists(webm_path): os.remove(webm_path)
         if os.path.exists(wav_path): os.remove(wav_path)

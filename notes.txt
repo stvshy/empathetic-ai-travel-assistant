@@ -1,10 +1,7 @@
-Start:
-docker compose up -d  
+STARTING THE APPLICATION:
+Simply double-click the start.bat file or .\start.bat in the terminal.
 
-End:
-docker compose down -v
-
-
-LOKALNIE:
-python app.py
-npr run dev
+REQUIREMENTS:
+- Python 3.10+
+- Node.js
+- FFmpeg (the script will try to handle it itself, but it's best to have it installed)
