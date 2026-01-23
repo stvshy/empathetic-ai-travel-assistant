@@ -28,6 +28,10 @@ const TRANSLATIONS = {
     enableEmotions: "Wykrywanie Emocji",
     enableTTS: "Czytanie Wiadomości (TTS)",
     recordingStart: "Jeśli skończysz mówić wciśnij czerwony przycisk na dole",
+    newChat: "Nowy Czat",
+    modelWeb: "Web (Szybki)",
+    modelWhisper: "Whisper (Wolny)",
+    whisperReq: "Wymaga modelu Whisper",
     profileFast: "Szybki ⚡",
     profileFastDesc: "Przeglądarka • Bez Emocji",
     profileEmp: "Empatyczny ❤️",
@@ -59,6 +63,10 @@ const TRANSLATIONS = {
     enableTTS: "Read Messages (TTS)",
     recordingStart:
       "When you finish speaking press the red button at the bottom",
+    newChat: "New Chat",
+    modelWeb: "Web (Fast)",
+    modelWhisper: "Whisper (Slow)",
+    whisperReq: "Requires Whisper model",
     profileFast: "Fast ⚡",
     profileFastDesc: "Browser • No Emotions",
     profileEmp: "Empathetic ❤️",
@@ -117,7 +125,16 @@ const App: React.FC = () => {
   const [availableVoices, setAvailableVoices] = useState<
     SpeechSynthesisVoice[]
   >([]);
-  // Dodaj ten useEffect, aby załadować głosy po uruchomieniu aplikacji
+
+  // FIX: Ref do przechowywania aktualnych ustawień (rozwiązuje problem czytania po wyłączeniu)
+  const settingsRef = useRef(state.settings);
+
+  // FIX: Aktualizacja refa przy każdej zmianie state.settings
+  useEffect(() => {
+    settingsRef.current = state.settings;
+  }, [state.settings]);
+
+  // Ładowanie dostępnych głosów TTS
   useEffect(() => {
     const loadVoices = () => {
       const voices = window.speechSynthesis.getVoices();
@@ -143,6 +160,8 @@ const App: React.FC = () => {
   const recognitionRef = useRef<any>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  // FIX: Flaga zapobiegająca podwójnemu wysłaniu tej samej wypowiedzi
+  const isProcessingSpeechRef = useRef(false);
   const [isBackendConnected, setIsBackendConnected] = useState(false);
 
   // Funkcja sprawdzająca "zdrowie" serwera
@@ -202,14 +221,21 @@ const App: React.FC = () => {
     }
   }, [state.settings.enableTTS]); // Tablica zależności: uruchom to tylko gdy zmieni się enableTTS
 
+  // Zmiana języka powinna natychmiast zatrzymać aktualne czytanie
+  useEffect(() => {
+    window.speechSynthesis.cancel();
+  }, [state.settings.language]);
+
   // --- TTS ---
   const speakText = (text: string) => {
-    if (!state.settings.enableTTS) return;
+    // FIX: Sprawdzamy ustawienia z Refa, a nie ze stanu (który może być nieaktualny w closure)
+    if (!settingsRef.current.enableTTS) return;
 
     window.speechSynthesis.cancel();
 
     const utterance = new SpeechSynthesisUtterance(text);
-    const isPolish = state.settings.language === "pl";
+    // FIX: Używamy języka z Refa dla pewności
+    const isPolish = settingsRef.current.language === "pl";
     const targetLang = isPolish ? "pl-PL" : "en-US";
 
     utterance.lang = targetLang;
@@ -250,6 +276,8 @@ const App: React.FC = () => {
   };
   // --- ACTIONS ---
   const handleNewChat = () => {
+    // FIX: Nowy czat też powinien przerwać ewentualne mówienie
+    window.speechSynthesis.cancel();
     const greeting =
       state.settings.language === "pl"
         ? "Cześć! Gdzie chciałbyś się wybrać?"
@@ -273,7 +301,8 @@ const App: React.FC = () => {
 
   const handleSendMessage = async (text: string) => {
     if (!text.trim()) return;
-
+    // FIX: Przerwij czytanie natychmiast po wysłaniu wiadomości
+    window.speechSynthesis.cancel();
     const userMsg: Message = {
       id: Date.now().toString(),
       role: "user",
@@ -322,54 +351,78 @@ const App: React.FC = () => {
   };
 
   // --- WEB SPEECH API ---
-  useEffect(() => {
+   useEffect(() => {
     const { webkitSpeechRecognition, SpeechRecognition } =
       window as unknown as IWindow;
     const Recognition = SpeechRecognition || webkitSpeechRecognition;
 
     if (Recognition) {
-      recognitionRef.current = new Recognition();
-      recognitionRef.current.lang =
-        state.settings.language === "pl" ? "pl-PL" : "en-US";
-      recognitionRef.current.continuous = true;
-      recognitionRef.current.interimResults = true;
+      const recognition = new Recognition();
+      recognition.lang = state.settings.language === "pl" ? "pl-PL" : "en-US";
+      recognition.continuous = true;
+      recognition.interimResults = true;
 
-      recognitionRef.current.onresult = (event: any) => {
+      recognition.onresult = (event: any) => {
         let final = "";
         let interim = "";
         for (let i = event.resultIndex; i < event.results.length; ++i) {
-          event.results[i].isFinal
-            ? (final += event.results[i][0].transcript)
-            : (interim += event.results[i][0].transcript);
+          if (event.results[i].isFinal) {
+            final += event.results[i][0].transcript;
+          } else {
+            interim += event.results[i][0].transcript;
+          }
         }
-        if (final) {
+
+        // FIX: Sprawdź flagę ref, czy już nie przetwarzamy
+        if (final && !isProcessingSpeechRef.current) {
+          isProcessingSpeechRef.current = true; // Zablokuj kolejne wywołania
           handleSendMessage(final);
-          stopRecording();
+          stopRecording(); // To wywoła stop(), a onend odblokuje interfejs
         } else {
           setInterimTranscript(interim);
         }
       };
 
-      recognitionRef.current.onerror = () => stopRecording();
-      recognitionRef.current.onend = () => {
+      recognition.onerror = () => stopRecording();
+      
+      recognition.onend = () => {
         if (state.isRecording && state.settings.sttModel === "browser") {
           setState((prev) => ({ ...prev, isRecording: false }));
         }
+        // Resetujemy flagę przetwarzania (choć przy handleSendMessage i tak się resetuje przez rerender, ale dla bezpieczeństwa)
+      };
+
+      recognitionRef.current = recognition;
+
+      // FIX: Funkcja czyszcząca w useEffect (cleanup) - zapobiega podwójnym instancjom
+      return () => {
+        if (recognitionRef.current) {
+          recognitionRef.current.abort(); // Brutalne przerwanie
+          recognitionRef.current = null;
+        }
       };
     }
-  }, [state.settings.language, state.settings.sttModel]);
+  }, [state.settings.language, state.settings.sttModel]); // Usunąłem isRecording z zależności, żeby nie reinicjalizować w trakcie
 
   // --- RECORDING ---
-  const startRecording = async () => {
-    setState((prev) => ({ ...prev, isRecording: true, error: null }));
+   const startRecording = async () => {
+    // FIX: Przerwij czytanie, gdy użytkownik zaczyna mówić
+    window.speechSynthesis.cancel();
+    
+    // Reset flagi blokującej podwójne wiadomości
+    isProcessingSpeechRef.current = false;
 
+    setState((prev) => ({ ...prev, isRecording: true, error: null }));
     if (state.settings.sttModel === "browser") {
       try {
         recognitionRef.current?.start();
-      } catch (e) {}
+      } catch (e) {
+        console.error("STT Error:", e);
+      }
       return;
     }
-
+    
+    // Whisper logic
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaRecorderRef.current = new MediaRecorder(stream);
@@ -396,35 +449,32 @@ const App: React.FC = () => {
       : mediaRecorderRef.current?.stop();
   };
 
-  const sendAudioToBackend = async (blob: Blob) => {
+   const sendAudioToBackend = async (blob: Blob) => {
     setState((prev) => ({ ...prev, isProcessing: true }));
+    // FIX: Upewnij się, że nie czytamy niczego w trakcie przetwarzania
+    window.speechSynthesis.cancel();
+
     const formData = new FormData();
     formData.append("audio", blob);
     formData.append("language", state.settings.language);
-
     try {
       const res = await fetch("http://localhost:5000/process_audio", {
         method: "POST",
         body: formData,
       });
       const data = await res.json();
-
       const userMsg: Message = {
         id: Date.now().toString(),
         role: "user",
         text: data.user_text,
         timestamp: new Date(),
       };
-
-      // LOGIKA EMOCJI: Jeśli wyłączone w ustawieniach, nie pokazujemy ich (chociaż backend je obliczył)
-      // Jeśli włączone, możemy je dokleić do stanu lub wykorzystać w UI (tutaj tylko czysty tekst)
       const aiMsg: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
         text: data.response,
         timestamp: new Date(),
       };
-
       setState((prev) => ({
         ...prev,
         messages: [...prev.messages, userMsg, aiMsg],
@@ -502,15 +552,18 @@ const App: React.FC = () => {
         <div className="flex items-center gap-1">
           {/* Quick Toggles (Visible outside settings) */}
           <button
-            onClick={() =>
+            onClick={() => {
+              // FIX: Przy ręcznym wyłączeniu TTS przerywamy natychmiast
+              if (state.settings.enableTTS) window.speechSynthesis.cancel();
+              
               setState((prev) => ({
                 ...prev,
                 settings: {
                   ...prev.settings,
                   enableTTS: !prev.settings.enableTTS,
                 },
-              }))
-            }
+              }));
+            }}
             className={`rounded-full flex items-center justify-center transition-all ${
               state.settings.enableTTS
                 ? "w-11 h-11 bg-green-100 text-green-600"
@@ -559,7 +612,7 @@ const App: React.FC = () => {
           <button
             onClick={handleNewChat}
             className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-blue-600 transition-colors"
-            title="Nowy Czat"
+            title={t.newChat}
           >
             <i className="fas fa-plus text-xl"></i>
           </button>
@@ -848,15 +901,17 @@ const App: React.FC = () => {
                     <input
                       type="checkbox"
                       checked={state.settings.enableTTS}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        const newVal = e.target.checked;
+                        if (!newVal) window.speechSynthesis.cancel(); // FIX: Stop immediate
                         setState((prev) => ({
                           ...prev,
                           settings: {
                             ...prev.settings,
-                            enableTTS: e.target.checked,
+                            enableTTS: newVal,
                           },
-                        }))
-                      }
+                        }));
+                      }}
                       className="sr-only"
                     />
                   </label>
@@ -874,7 +929,7 @@ const App: React.FC = () => {
                       </span>
                       {state.settings.sttModel === "browser" && (
                         <span className="text-[9px] text-red-500 block">
-                          Wymaga modelu Whisper
+                          {t.whisperReq}
                         </span>
                       )}
                     </div>
@@ -945,7 +1000,7 @@ const App: React.FC = () => {
                           : "text-gray-500"
                       }`}
                     >
-                      Web (Fast)
+                      {t.modelWeb}
                     </button>
                     <button
                       onClick={() =>
@@ -960,7 +1015,7 @@ const App: React.FC = () => {
                           : "text-gray-500"
                       }`}
                     >
-                      Whisper (Slow)
+                      {t.modelWhisper}
                     </button>
                   </div>
                   {state.settings.sttModel === "whisper" && (
@@ -989,7 +1044,7 @@ const App: React.FC = () => {
                           : "text-gray-500"
                       }`}
                     >
-                      Web (Fast)
+                      {t.modelWeb}
                     </button>
                     <button
                       disabled
