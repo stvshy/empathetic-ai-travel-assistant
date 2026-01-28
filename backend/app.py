@@ -1,12 +1,21 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file, after_this_request
 from flask_cors import CORS
 import logging
 import os
 import tempfile
 import subprocess
 from dotenv import load_dotenv
+import numpy as np
+from pathlib import Path
+# --- SMART FFMPEG LOADING ---
+try:
+    import static_ffmpeg
+    static_ffmpeg.add_paths()
+    print("ℹ️  Loaded static-ffmpeg package.")
+except ImportError:
+    print("ℹ️  Using system FFmpeg (static-ffmpeg not installed).")
+# ----------------------------
 
-# --- NOWA BIBLIOTEKA ---
 from google import genai
 from google.genai import types
 
@@ -24,6 +33,13 @@ CORS(app, supports_credentials=True)
 # --- KONFIGURACJA GEMINI ---
 API_KEY = os.getenv("GEMINI_API_KEY")
 client = genai.Client(api_key=API_KEY)
+
+# --- KONFIGURACJA PIPER ---
+BASE = Path(__file__).resolve().parent
+PIPER_EXE = BASE / r"piper_binary\piper_windows_amd64\piper\piper.exe"
+MODEL = BASE / "pl_PL-gosia-medium.onnx"
+CONFIG = BASE / "pl_PL-gosia-medium.onnx.json"
+ENV = {"OMP_NUM_THREADS": "2", "MKL_NUM_THREADS": "2"}
 
 # --- SYSTEM PROMPTS (WIELOJĘZYCZNE) ---
 SYSTEM_INSTRUCTIONS = {
@@ -83,6 +99,7 @@ def generate_gemini_response(user_text, language="pl", emotion=None):
     except Exception as e:
         logger.error(f"Gemini Error: {e}")
         return "Przepraszam, wystąpił błąd po stronie AI." if language == "pl" else "Sorry, an AI error occurred."
+    
 
 # --- ENDPOINT 1: CZAT TEKSTOWY (Szybki) ---
 @app.route("/chat", methods=["POST"])
@@ -157,6 +174,48 @@ def health_check():
         "llm_status": "ready", 
         "model": "Gemini Flash Lite (Check skipped to save quota)"
     }), 200
+
+
+
+# ------ ENDPOINT 4 TTS -------
+@app.route("/tts", methods=["POST"])
+def tts():
+    data = request.json
+    text = data.get("text")
+
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_file:
+        tmp_filename = tmp_file.name
+
+    cmd = [str(PIPER_EXE), "-m", str(MODEL), "-c", str(CONFIG), "-f", str(tmp_filename),
+           "--sentence_silence", "0.2", "--length_scale", "1.0"]
+    try:
+        result = subprocess.run(cmd, input=text.encode("utf-8"),capture_output=True, check=True, env=ENV)
+        if result.returncode != 0:
+            error_details = result.stderr.decode("utf-8", errors="ignore") if isinstance(result.stderr, bytes) else str(result.stderr)
+
+            return jsonify({
+                "error": "TTS failed",
+                "details": error_details
+            }), 500
+        else:
+            @after_this_request
+            def cleanup(response):
+                if os.path.exists(tmp_filename):
+                    try:
+                        os.remove(tmp_filename)
+                    except Exception as e:
+                        print("Cleanup failed:", e)
+                return response
+
+            return send_file(tmp_filename, mimetype='audio/wav', as_attachment=True, download_name='tts.wav')
+        
+    
+    except:
+        if os.path.exists(tmp_filename):
+            os.remove(tmp_filename)
+
+
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
