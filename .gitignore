@@ -13,6 +13,10 @@
 venv/
 .venv/
 env/
+backend/piper1-gpl-1.3.0/
+backend/piper_binary/
+backend/pl_PL-gosia-medium.onnx
+backend/pl_PL-gosia-medium.onnx.json
 
 # Pliki cache Pythona
 __pycache__/
