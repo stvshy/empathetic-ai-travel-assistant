@@ -108,7 +108,9 @@ const SoundWave: React.FC = () => (
 );
 
 const App: React.FC = () => {
-  // --- STATE ---
+  // --- KONFIGURACJA ADRESU API ---
+    const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/$/, "");
+
   const [state, setState] = useState<AppState>({
     isRecording: false,
     isProcessing: false,
@@ -128,15 +130,15 @@ const App: React.FC = () => {
     SpeechSynthesisVoice[]
   >([]);
 
-  // FIX: Ref do przechowywania aktualnych ustawień (rozwiązuje problem czytania po wyłączeniu)
+  // Ref do przechowywania aktualnych ustawień 
   const settingsRef = useRef(state.settings);
 
-  // FIX: Aktualizacja refa przy każdej zmianie state.settings
+  // Aktualizacja refa przy każdej zmianie state.settings
   useEffect(() => {
     settingsRef.current = state.settings;
   }, [state.settings]);
 
-  // NOWE: Ref do śledzenia aktualnych messages (rozwiązuje problem closure w handleSendMessage)
+  // Ref do śledzenia aktualnych messages 
   const messagesRef = useRef(state.messages);
 
   // Aktualizacja refa przy każdej zmianie state.messages
@@ -171,7 +173,7 @@ const App: React.FC = () => {
   const recognitionRef = useRef<any>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
-  // FIX: Flaga zapobiegająca podwójnemu wysłaniu tej samej wypowiedzi
+  // Flaga zapobiegająca podwójnemu wysłaniu tej samej wypowiedzi
   const isProcessingSpeechRef = useRef(false);
   // Ref do śledzenia czy greeting został już ustawiony
   const greetingInitializedRef = useRef(false);
@@ -184,7 +186,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const checkConnection = async () => {
       try {
-        const res = await fetch("http://localhost:5000/health");
+        const res = await fetch(`${API_URL}/health`);
         if (res.ok) {
           setIsBackendConnected(true);
         } else {
@@ -299,7 +301,7 @@ const App: React.FC = () => {
 
   // --- TTS ---
   const speakText = async (text: string) => {
-    // FIX: Sprawdzamy ustawienia z Refa, a nie ze stanu (który może być nieaktualny w closure)
+    // Sprawdzamy ustawienia z Refa, a nie ze stanu (który może być nieaktualny w closure)
     if (!settingsRef.current.enableTTS) return;
 
     window.speechSynthesis.cancel();
@@ -315,7 +317,7 @@ const App: React.FC = () => {
     // Jeśli wybrano Pipera, używamy backendu
     if (settingsRef.current.ttsModel === "piper") {
       try {
-        const res = await fetch("http://localhost:5000/tts", {
+        const res = await fetch(`${API_URL}/tts`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ text: cleanText }),
@@ -346,7 +348,7 @@ const App: React.FC = () => {
 
     // Używamy przeglądarki (oryginalny kod)
     const utterance = new SpeechSynthesisUtterance(cleanText);
-    // FIX: Używamy języka z Refa dla pewności
+    // Używamy języka z Refa dla pewności
     const isPolish = settingsRef.current.language === "pl";
     const targetLang = isPolish ? "pl-PL" : "en-US";
 
@@ -388,7 +390,7 @@ const App: React.FC = () => {
   };
   // --- ACTIONS ---
   const handleNewChat = () => {
-    // FIX: Nowy czat też powinien przerwać ewentualne mówienie
+    // Nowy czat przerywa ewentualne mówienie
     window.speechSynthesis.cancel();
     // Przerwij też Pipera
     if (piperAudioRef.current) {
@@ -419,7 +421,7 @@ const App: React.FC = () => {
 
   const handleSendMessage = async (text: string) => {
     if (!text.trim()) return;
-    // FIX: Przerwij czytanie natychmiast po wysłaniu wiadomości
+    // Przerwij czytanie natychmiast po wysłaniu wiadomości
     window.speechSynthesis.cancel();
     // Przerwij też Pipera
     if (piperAudioRef.current) {
@@ -438,8 +440,8 @@ const App: React.FC = () => {
       timestamp: new Date(),
     };
     
-    // PRZYGOTOWANIE HISTORII PRZED wysłaniem - UŻYWAMY REFA!
-    // Filtrujemy wiadomość powitalną (init) i obecne wiadomości (BEZ nowej wiadomości użytkownika)
+    // PRZYGOTOWANIE HISTORII PRZED wysłaniem 
+    // Filtrujemy wiadomość powitalną (init) i obecne wiadomości użytkownika
     const historyBeforeUserMsg = messagesRef.current
       .filter(msg => msg.id !== "init")
       .map(msg => ({
@@ -466,13 +468,13 @@ const App: React.FC = () => {
         history: historyBeforeUserMsg,
       });
 
-      const res = await fetch("http://localhost:5000/chat", {
+      const res = await fetch(`${API_URL}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           text,
           language: state.settings.language,
-          history: historyBeforeUserMsg, // <--- Wysyłamy historię przygotowaną PRZED setState
+          history: historyBeforeUserMsg, 
         }),
       });
 
@@ -524,7 +526,7 @@ const App: React.FC = () => {
           }
         }
 
-        // FIX: Sprawdź flagę ref, czy już nie przetwarzamy
+        // Sprawdź flagę ref, czy już nie przetwarzamy
         if (final && !isProcessingSpeechRef.current) {
           isProcessingSpeechRef.current = true; // Zablokuj kolejne wywołania
           handleSendMessage(final);
@@ -545,19 +547,19 @@ const App: React.FC = () => {
 
       recognitionRef.current = recognition;
 
-      // FIX: Funkcja czyszcząca w useEffect (cleanup) - zapobiega podwójnym instancjom
+      // Funkcja czyszcząca w useEffect (cleanup) - zapobiega podwójnym instancjom
       return () => {
         if (recognitionRef.current) {
-          recognitionRef.current.abort(); // Brutalne przerwanie
+          recognitionRef.current.abort(); 
           recognitionRef.current = null;
         }
       };
     }
-  }, [state.settings.language, state.settings.sttModel]); // Usunąłem isRecording z zależności, żeby nie reinicjalizować w trakcie
+  }, [state.settings.language, state.settings.sttModel]); 
 
   // --- RECORDING ---
    const startRecording = async () => {
-    // FIX: Przerwij czytanie, gdy użytkownik zaczyna mówić
+    // Przerwij czytanie, gdy użytkownik zaczyna mówić
     window.speechSynthesis.cancel();
     // Przerwij też Pipera
     if (piperAudioRef.current) {
@@ -579,7 +581,7 @@ const App: React.FC = () => {
       return;
     }
     
-    // Whisper logic
+    // Logika Whispera
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaRecorderRef.current = new MediaRecorder(stream);
@@ -607,7 +609,6 @@ const App: React.FC = () => {
   };
 
    const sendAudioToBackend = async (blob: Blob) => {
-    // PRZYGOTOWANIE HISTORII PRZED setState - UŻYWAMY REFA!
     // Filtrujemy wiadomość powitalną (init)
     const history = messagesRef.current
       .filter(msg => msg.id !== "init") // Wyłącz greeting
@@ -625,11 +626,10 @@ const App: React.FC = () => {
     const formData = new FormData();
     formData.append("audio", blob);
     formData.append("language", state.settings.language);
-    // Dodajemy historię jako string JSON do formularza
     formData.append("history", JSON.stringify(history)); 
 
-    try {
-      const res = await fetch("http://localhost:5000/process_audio", {
+     try {
+      const res = await fetch(`${API_URL}/process_audio`, {
         method: "POST",
         body: formData,
       });
@@ -724,7 +724,6 @@ const App: React.FC = () => {
           {/* Quick Toggles (Visible outside settings) */}
           <button
             onClick={() => {
-              // FIX: Przy ręcznym wyłączeniu TTS przerywamy natychmiast
               if (state.settings.enableTTS) window.speechSynthesis.cancel();
               
               setState((prev) => ({

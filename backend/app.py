@@ -98,8 +98,6 @@ SYSTEM_INSTRUCTIONS = {
     """,
     
     "en": """
-    !!! MANDATORY LANGUAGE: ALWAYS RESPOND IN ENGLISH, NO MATTER WHAT LANGUAGE THE USER WRITES !!!
-    
     ROLE:
     You are a Personal Travel Architect, but you act like a Curious and Engaged Friend. Your task is not to sell, but to co-create a VERY DETAILED ideal plan with the user. Be inquisitive!
     ----
@@ -238,7 +236,7 @@ def chat():
     data = request.json
     user_text = data.get("text")
     language = data.get("language", "pl")
-    history = data.get("history", []) # <-- Nowość: pobieramy historię
+    history = data.get("history", []) # Pobieramy historię
 
     if not user_text: return jsonify({"error": "Brak tekstu"}), 400
     
@@ -261,7 +259,7 @@ def process_audio():
     
     language = request.form.get("language", "pl")
     
-    # --- Nowość: Dekodowanie historii z JSON ---
+    # Dekodowanie historii z JSON ---
     history_json = request.form.get("history", "[]")
     try:
         history = json.loads(history_json)
