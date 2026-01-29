@@ -1,9 +1,10 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file, after_this_request
 from flask_cors import CORS
 import logging
 import os
 import tempfile
 import subprocess
+import json
 from dotenv import load_dotenv
 import numpy as np
 # --- SMART FFMPEG LOADING ---
@@ -14,10 +15,9 @@ try:
 except ImportError:
     print("ℹ️  Using system FFmpeg (static-ffmpeg not installed).")
 # ----------------------------
-
 from google import genai
 from google.genai import types
-
+from pathlib import Path
 # --- BIBLIOTEKI DO AUDIO ---
 import whisper
 from transformers import pipeline
@@ -32,16 +32,34 @@ CORS(app, supports_credentials=True)
 # --- KONFIGURACJA GEMINI ---
 API_KEY = os.getenv("GEMINI_API_KEY")
 client = genai.Client(api_key=API_KEY)
+# --- KONFIGURACJA PIPER TTS (Nowe) ---
+BASE = Path(__file__).resolve().parent
+# Upewnij się, że piper.exe jest w folderze 'piper_binary' wewnątrz folderu backend
+PIPER_EXE = BASE / "piper_binary" / "piper.exe"
+MODEL = BASE / "pl_PL-gosia-medium.onnx"
+CONFIG = BASE / "pl_PL-gosia-medium.onnx.json"
 
+# Ustawienia środowiskowe dla Pipera (szybsze działanie na CPU)
+ENV = os.environ.copy()
+ENV["OMP_NUM_THREADS"] = "2"
+ENV["MKL_NUM_THREADS"] = "2"
 # --- SYSTEM PROMPTS (WIELOJĘZYCZNE) ---
 SYSTEM_INSTRUCTIONS = {
     "pl": """
+    !!! JĘZYK OBOWIĄZKOWY: ZAWSZE ODPOWIADAJ PO POLSKU, NIEZALEŻNIE JAK UŻYTKOWNIK PISZE !!!
+    
     ROLA:
     Jesteś Osobistym Architektem Podróży, ale działasz jak Ciekawski i Zaangażowany Kolega. Twoim zadaniem nie jest sprzedaż, ale wspólne z użytkownikiem zbudowanie BARDZO SZCZEGÓŁOWEGO planu idealnego. Bądź dociekliwy!
     ----
+       
+    ZASADA NUMER 1 (PRIORYTET PAMIĘCI):
+    Zanim o coś zapytasz, SPRAWDŹ DOSTARCZONĄ HISTORIĘ ROZMOWY.
+    - Jeśli użytkownik napisał "Jadę do Kopenhagi", NIE PYTAJ "Gdzie chcesz jechać?".
+    
     TWOJA BAZA WIEDZY I ZASADY PLANOWANIA:
+
     1. WERYFIKACJA CZASU I REALIZMU (KLUCZOWE):
-       - Gdy użytkownik poda czas trwania (np. "na 4 dni"), MUSISZ ustalić: czy to czas liczony z podróżą, czy czysty czas na miejscu.
+       - Gdy użytkownik poda czas trwania (np. "na 4 dni"), ustal: czy to czas liczony z podróżą, czy czysty czas na miejscu.
        - Oblicz i zakomunikuj realny czas: "Skoro lot trwa 4h w jedną stronę + dojazd na lotnisko, to z tych 3 dni zostaną nam realnie niespełna 2 dni na zwiedzanie".
        - Oceniaj sensowność: Jeśli plan jest zbyt napięty lub nierealny (np. 3 dni na Tajlandię), powiedz to wprost i delikatnie odradź, proponując alternatywę.
     
@@ -54,8 +72,8 @@ SYSTEM_INSTRUCTIONS = {
        - Jeśli NIE MA biletów i zależy mu na cenie: Twoim obowiązkiem jest doradzić, gdzie szukać (wymień: Azair, Skyscanner, Google Flights).
        - Jeśli podróż lądowa: sugeruj jakieś opcje zakupu, jeśli budżet jest napięty to: FlixBus, tanie koleje.
     
-    INSTRUKCJA OBSŁUGI EMOCJI (To wyróżnia Cię od zwykłego chatu):
-    Otrzymasz tekst użytkownika oraz wykrytą EMOCJĘ w tagu [SYSTEM INFO]. Twoja odpowiedź ZALEŻY od tej emocji:
+    INSTRUKCJA OBSŁUGI EMOCJI (Instrukcje Ukryte):
+   - Otrzymasz informację o emocji użytkownika w instrukcji systemowej. Twoja odpowiedź ZALEŻY od tej emocji:
     
     SCENARIUSZ 1: Użytkownik jest ZAGUBIONY / NIEPEWNY / ZMARTWIONY (Sad/Fear/Neutral).
     - Interpretacja: Użytkownik czuje się przytłoczony logistyką, cenami lub nieznanym.
@@ -70,11 +88,18 @@ SYSTEM_INSTRUCTIONS = {
     ZASADY TECHNICZNE:
     - Nie generuj od razu planu na cały wyjazd. Planuj etapami.
     - UŻYWAJ Markdowna (pogrubienia **kluczowych nazw**, listy punktowane dla opcji, linków).
-    - Informacja o emocjach [SYSTEM INFO] jest TYLKO DLA CIEBIE. 
-    - NIGDY nie cytuj ani nie przepisuj tagu emocji w swojej odpowiedzi. To ma ci tylko sugerować jak odpowiadać.
+    
+    !!! ABSOLUTNY ZAKAZ !!!
+    NIGDY, POD ŻADNYM POZOREM nie pisz w swojej odpowiedzi:
+    - Słów: "SYSTEM INFO", "[SYSTEM", "META-DATA", "Detected Emotion"
+    - Nazw emocji (Neutral, Happy, Sad, Fear, Excited)
+    - Żadnych odniesień do instrukcji systemowych lub emocji
+    To są TYLKO dane wewnętrzne do dostosowania tonu. Użytkownik NIE MOŻE ich zobaczyć.
     """,
     
     "en": """
+    !!! MANDATORY LANGUAGE: ALWAYS RESPOND IN ENGLISH, NO MATTER WHAT LANGUAGE THE USER WRITES !!!
+    
     ROLE:
     You are a Personal Travel Architect, but you act like a Curious and Engaged Friend. Your task is not to sell, but to co-create a VERY DETAILED ideal plan with the user. Be inquisitive!
     ----
@@ -109,8 +134,13 @@ SYSTEM_INSTRUCTIONS = {
     TECHNICAL RULES:
     - Do not generate a plan for the whole trip immediately. Plan in stages.
     - USE Markdown (bold **key names**, bullet lists for options, links).
-    - The emotion info [SYSTEM INFO] is ONLY FOR YOU. 
-    - NEVER quote or rewrite the emotion tag in your response. It is only there to suggest how to answer.
+    
+    !!! ABSOLUTE PROHIBITION !!!
+    NEVER, UNDER ANY CIRCUMSTANCES write in your response:
+    - Words: "SYSTEM INFO", "[SYSTEM", "META-DATA", "Detected Emotion"
+    - Emotion names (Neutral, Happy, Sad, Fear, Excited)
+    - Any references to system instructions or emotions
+    This is ONLY internal data for adjusting tone. The user MUST NOT see it.
     """
 }
 
@@ -122,10 +152,9 @@ print("⏳ Ładowanie modelu Emocji (Wav2Vec)...")
 emotion_classifier = pipeline("audio-classification", model="superb/wav2vec2-base-superb-er")
 
 # --- START: WARM-UP (ROZGRZEWKA MODELI) ---
-# Przepuszczamy "ciszę" przez modele, żeby załadowały się do pamięci TERAZ, a nie przy pierwszym zapytaniu użytkownika.
 print("🔥 Rozgrzewanie modeli (Ghost Run)...")
 try:
-    # Generujemy 1 sekundę ciszy (16000 próbek, bo tyle wymaga Whisper/Wav2Vec)
+    # Generujemy 1 sekundę ciszy
     dummy_audio = np.zeros(16000, dtype=np.float32)
 
     # 1. Przepuszczamy ducha przez Whisper
@@ -133,51 +162,92 @@ try:
     
     # 2. Przepuszczamy ducha przez Wav2Vec
     emotion_classifier(dummy_audio)
-    
-    print("🚀 Modele rozgrzane i gotowe do akcji w milisekundach!")
+
+    # 3. Przepuszczamy ducha przez Pipera (Cache dyskowy + test binarki)
+    if PIPER_EXE.exists() and MODEL.exists():
+        # Generujemy dźwięk dla kropki ".", żeby było jak najkrócej
+        # Wynik wypluwamy w nicość (nie zapisujemy pliku na dysku, tylko sprawdzamy proces)
+        subprocess.run(
+            [str(PIPER_EXE), "-m", str(MODEL), "-c", str(CONFIG), "-f", "-", "--length_scale", "1.0"],
+            input=".".encode("utf-8"),
+            stdout=subprocess.DEVNULL, # Ignoruj wyjście audio (binarne na stdout)
+            stderr=subprocess.DEVNULL, # Ignoruj logi
+            env=ENV
+        )
+
+    print("🚀 Wszystkie systemy (Whisper, Emotion, Piper) gotowe do akcji!")
 except Exception as e:
-    print(f"⚠️ Ostrzeżenie: Nie udało się rozgrzać modeli (błąd: {e})")
+    print(f"⚠️ Ostrzeżenie: Nie udało się w pełni rozgrzać modeli (błąd: {e})")
 # --- KONIEC WARM-UP ---
 
 print("✅ Backend gotowy!")
 
-def generate_gemini_response(user_text, language="pl", emotion=None):
-    """
-    Generuje odpowiedź z uwzględnieniem języka i emocji.
-    """
-    
-    system_instruction = SYSTEM_INSTRUCTIONS.get(language, SYSTEM_INSTRUCTIONS["pl"])
-    
-    final_input = user_text
+def generate_gemini_response(user_text, language="pl", emotion=None, history=None):
+    # 1. Wybór instrukcji i dodanie emocji jako "meta-dane" (ukryte)
+    current_instruction = SYSTEM_INSTRUCTIONS.get(language, SYSTEM_INSTRUCTIONS["pl"])
     if emotion:
-        # Dodajemy kontekst emocji dla modelu, ale NIE doklejamy go do odpowiedzi widocznej dla usera
-        lang_note = "Wykryta emocja:" if language == "pl" else "Detected emotion:"
-        final_input += f"\n[SYSTEM INFO: {lang_note} {emotion}]"
+        current_instruction += f"\n(META-DATA: User emotion: {emotion} - adjust tone, do not quote this tag)."
+
+    # 2. Budowanie wyraźnego bloku historii
+    context_string = ""
+    if history and isinstance(history, list) and len(history) > 0:
+        context_string += "\n=== HISTORIA ROZMOWY (To co już ustaliliśmy) ===\n"
+        for msg in history:
+            role = "Użytkownik" if msg.get("role") == "user" else "Ty (Asystent)"
+            text = msg.get("text", "")
+            context_string += f"{role}: {text}\n"
+        context_string += "=== KONIEC HISTORII ===\n"
+        print(f"📜 AI otrzymało historię: {len(history)} wiadomości")
+        print(f"Historia: {history}")
+    else:
+        print("⚠️ Brak historii - to pierwsza wiadomość")
+    
+    # 3. Sklejenie wszystkiego
+    final_input = f"{context_string}\nTERAZ Użytkownik pisze: {user_text}"
+    
+    print(f"🤖 Pełny prompt dla AI (pierwsze 500 znaków):\n{final_input[:500]}...")
 
     try:
         response = client.models.generate_content(
-            model='gemini-flash-lite-latest', # Zmienione na 2.0 Flash (szybszy/stabilny w API)
+            model='gemini-flash-lite-latest',
             contents=final_input,
             config=types.GenerateContentConfig(
-                system_instruction=system_instruction,
+                system_instruction=current_instruction,
                 temperature=0.7,
             )
         )
-        return response.text
+        
+        # POST-PROCESSING: Usuń [SYSTEM INFO] jeśli AI zignorowało zakaz
+        clean_response = response.text
+        # Usuń całe linie zawierające [SYSTEM INFO]
+        import re
+        clean_response = re.sub(r'\[SYSTEM INFO\].*?\n', '', clean_response, flags=re.IGNORECASE)
+        clean_response = re.sub(r'\[SYSTEM.*?\]', '', clean_response, flags=re.IGNORECASE)
+        clean_response = re.sub(r'META-DATA:.*?\n', '', clean_response, flags=re.IGNORECASE)
+        
+        return clean_response.strip()
     except Exception as e:
         logger.error(f"Gemini Error: {e}")
         return "Przepraszam, wystąpił błąd po stronie AI." if language == "pl" else "Sorry, an AI error occurred."
-
+    
 # --- ENDPOINT 1: CZAT TEKSTOWY (Szybki) ---
 @app.route("/chat", methods=["POST"])
 def chat():
+    print(f"\n🔍 DEBUG /chat - request.json: {request.json}")
+    
     data = request.json
     user_text = data.get("text")
-    language = data.get("language", "pl") # Domyślnie PL
-    
-    if not user_text: return jsonify({"error": "Brak tekstu"}), 400
+    language = data.get("language", "pl")
+    history = data.get("history", []) # <-- Nowość: pobieramy historię
 
-    ai_response = generate_gemini_response(user_text, language=language, emotion=None)
+    if not user_text: return jsonify({"error": "Brak tekstu"}), 400
+    
+    print(f"\n📨 Otrzymano wiadomość tekstową: '{user_text[:50]}...'")
+    print(f"📚 Historia zawiera: {len(history)} wiadomości")
+    if len(history) > 0:
+        print(f"📋 Szczegóły historii: {history}")
+
+    ai_response = generate_gemini_response(user_text, language=language, emotion=None, history=history)
     
     return jsonify({
         "response": ai_response,
@@ -189,8 +259,18 @@ def chat():
 def process_audio():
     if "audio" not in request.files: return jsonify({"error": "No audio"}), 400
     
-    # Pobieramy język z formularza (FormData)
     language = request.form.get("language", "pl")
+    
+    # --- Nowość: Dekodowanie historii z JSON ---
+    history_json = request.form.get("history", "[]")
+    try:
+        history = json.loads(history_json)
+        print(f"\n🎤 Otrzymano wiadomość audio")
+        print(f"📚 Historia zawiera: {len(history)} wiadomości")
+    except:
+        history = []
+        print("⚠️ Nie udało się zdekodować historii")
+    # -------------------------------------------
 
     audio_file = request.files["audio"]
     with tempfile.NamedTemporaryFile(delete=False, suffix=".webm") as webm_file:
@@ -202,20 +282,17 @@ def process_audio():
         subprocess.run(
             ["ffmpeg", "-y", "-i", webm_path, "-ac", "1", "-ar", "16000", wav_path], 
             check=True, 
-            stdout=subprocess.DEVNULL # to można zostawić wyciszone
+            stdout=subprocess.DEVNULL 
         )
         
-        # 1. Transkrypcja (Whisper)
-        # Wybór języka dla Whispera
         transcription = stt_model.transcribe(wav_path, language="pl" if language == "pl" else "en")
         text = transcription["text"].strip()
 
-        # 2. Emocje
         emotions = emotion_classifier(wav_path)
         top_emotion = emotions[0]['label']
 
-        # 3. LLM
-        ai_response = generate_gemini_response(text, language=language, emotion=top_emotion)
+        # Przekazujemy historię do AI
+        ai_response = generate_gemini_response(text, language=language, emotion=top_emotion, history=history)
 
         return jsonify({
             "user_text": text,
@@ -248,6 +325,69 @@ def health_check():
         "llm_status": "ready", 
         "model": "Gemini Flash Lite (Check skipped to save quota)"
     }), 200
+# --- ENDPOINT 4: TEXT-TO-SPEECH (Piper) ---
+@app.route("/tts", methods=["POST"])
+def tts():
+    # 1. Walidacja czy pliki istnieją
+    if not PIPER_EXE.exists():
+        logger.error(f"❌ Nie znaleziono Pipera: {PIPER_EXE}")
+        return jsonify({"error": "Brak pliku piper.exe na serwerze"}), 500
+    if not MODEL.exists():
+        logger.error(f"❌ Nie znaleziono modelu: {MODEL}")
+        return jsonify({"error": "Brak modelu głosu (.onnx) na serwerze"}), 500
 
+    # 2. Pobranie danych
+    data = request.json
+    text = data.get("text")
+    if not text:
+        return jsonify({"error": "Brak tekstu"}), 400
+
+    # 3. Plik tymczasowy
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_file:
+        tmp_filename = tmp_file.name
+
+    # 4. Budowa komendy
+    cmd = [
+        str(PIPER_EXE),
+        "-m", str(MODEL),
+        "-c", str(CONFIG),
+        "-f", str(tmp_filename),
+        "--sentence_silence", "0.2",
+        "--length_scale", "1.0"
+    ]
+
+    try:
+        # 5. Uruchomienie Pipera
+        subprocess.run(
+            cmd,
+            input=text.encode("utf-8"),
+            capture_output=True,
+            check=True,
+            env=ENV
+        )
+
+        # 6. Sprzątanie po wysłaniu
+        @after_this_request
+        def cleanup(response):
+            try:
+                if os.path.exists(tmp_filename):
+                    os.remove(tmp_filename)
+            except Exception as e:
+                logger.error(f"Błąd cleanup: {e}")
+            return response
+
+        # 7. Wysłanie pliku
+        return send_file(tmp_filename, mimetype='audio/wav', as_attachment=False)
+
+    except subprocess.CalledProcessError as e:
+        error_msg = e.stderr.decode("utf-8", errors="ignore") if e.stderr else str(e)
+        logger.error(f"Błąd Piper TTS: {error_msg}")
+        if os.path.exists(tmp_filename): os.remove(tmp_filename)
+        return jsonify({"error": "Błąd generowania TTS", "details": error_msg}), 500
+    except Exception as e:
+        logger.error(f"Błąd ogólny TTS: {e}")
+        if os.path.exists(tmp_filename): os.remove(tmp_filename)
+        return jsonify({"error": str(e)}), 500
+    
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

@@ -30,6 +30,7 @@ const TRANSLATIONS = {
     recordingStart: "Jeśli skończysz mówić wciśnij czerwony przycisk na dole",
     newChat: "Nowy Czat",
     modelWeb: "Web (Szybki)",
+    modelPiper: "Piper (Wolny)",
     modelWhisper: "Whisper (Wolny)",
     whisperReq: "Wymaga modelu Whisper",
     profileFast: "Szybki ⚡",
@@ -65,6 +66,7 @@ const TRANSLATIONS = {
       "When you finish speaking press the red button at the bottom",
     newChat: "New Chat",
     modelWeb: "Web (Fast)",
+    modelPiper: "Piper (Slow)",
     modelWhisper: "Whisper (Slow)",
     whisperReq: "Requires Whisper model",
     profileFast: "Fast ⚡",
@@ -134,6 +136,15 @@ const App: React.FC = () => {
     settingsRef.current = state.settings;
   }, [state.settings]);
 
+  // NOWE: Ref do śledzenia aktualnych messages (rozwiązuje problem closure w handleSendMessage)
+  const messagesRef = useRef(state.messages);
+
+  // Aktualizacja refa przy każdej zmianie state.messages
+  useEffect(() => {
+    messagesRef.current = state.messages;
+    console.log("📝 messages zaktualizowane:", state.messages.length);
+  }, [state.messages]);
+
   // Ładowanie dostępnych głosów TTS
   useEffect(() => {
     const loadVoices = () => {
@@ -162,6 +173,11 @@ const App: React.FC = () => {
   const audioChunksRef = useRef<Blob[]>([]);
   // FIX: Flaga zapobiegająca podwójnemu wysłaniu tej samej wypowiedzi
   const isProcessingSpeechRef = useRef(false);
+  // Ref do śledzenia czy greeting został już ustawiony
+  const greetingInitializedRef = useRef(false);
+  const previousLanguageRef = useRef(state.settings.language);
+  // Ref do aktualnie odtwarzanego audio z Pipera
+  const piperAudioRef = useRef<HTMLAudioElement | null>(null);
   const [isBackendConnected, setIsBackendConnected] = useState(false);
 
   // Funkcja sprawdzająca "zdrowie" serwera
@@ -186,14 +202,35 @@ const App: React.FC = () => {
     const interval = setInterval(checkConnection, 30000);
     return () => clearInterval(interval);
   }, []);
-  // Initial Greeting
+  // Initial Greeting + Reset historii TYLKO gdy zmieni się język
   useEffect(() => {
     const greeting =
       state.settings.language === "pl"
         ? "Cześć! Gdzie chcesz się wybrać?"
         : "Hi! Where do you want to go?";
 
-    if (state.messages.length === 0 || state.messages[0].id === "init") {
+    // Jeśli to pierwszy raz - ustaw greeting
+    if (!greetingInitializedRef.current) {
+      greetingInitializedRef.current = true;
+      previousLanguageRef.current = state.settings.language;
+      setState((prev) => ({
+        ...prev,
+        messages: [
+          {
+            id: "init",
+            role: "assistant",
+            text: greeting,
+            timestamp: new Date(),
+          },
+        ],
+      }));
+      return;
+    }
+
+    // Jeśli język się zmienił - resetuj historię I greeting
+    if (previousLanguageRef.current !== state.settings.language) {
+      previousLanguageRef.current = state.settings.language;
+      console.log("🌍 Zmieniono język - resetuję czat");
       setState((prev) => ({
         ...prev,
         messages: [
@@ -218,22 +255,97 @@ const App: React.FC = () => {
     if (!state.settings.enableTTS) {
       console.log("TTS wyłączony - przerywam mówienie.");
       window.speechSynthesis.cancel(); // <- To jest ten hamulec ręczny
+      // Przerwij też Pipera
+      if (piperAudioRef.current) {
+        piperAudioRef.current.pause();
+        piperAudioRef.current.currentTime = 0;
+        piperAudioRef.current = null;
+      }
     }
   }, [state.settings.enableTTS]); // Tablica zależności: uruchom to tylko gdy zmieni się enableTTS
 
   // Zmiana języka powinna natychmiast zatrzymać aktualne czytanie
   useEffect(() => {
     window.speechSynthesis.cancel();
+    // Przerwij też Pipera
+    if (piperAudioRef.current) {
+      piperAudioRef.current.pause();
+      piperAudioRef.current.currentTime = 0;
+      piperAudioRef.current = null;
+    }
   }, [state.settings.language]);
 
+  // --- FUNKCJA CZYSZCZĄCA MARKDOWN ---
+  const stripMarkdown = (text: string): string => {
+    return text
+      // Usuń nagłówki (##, ###, etc.)
+      .replace(/^#{1,6}\s+/gm, '')
+      // Usuń pogrubienie i kursywę (**tekst**, *tekst*)
+      .replace(/\*\*(.+?)\*\*/g, '$1')
+      .replace(/\*(.+?)\*/g, '$1')
+      // Usuń linki [text](url)
+      .replace(/\[(.+?)\]\((.+?)\)/g, '$1')
+      // Usuń bloki kodu ```
+      .replace(/```[\s\S]*?```/g, '')
+      .replace(/`(.+?)`/g, '$1')
+      // Usuń listy punktowane (-, *, +)
+      .replace(/^[\s]*[-\*\+]\s+/gm, '')
+      // Usuń listy numerowane
+      .replace(/^[\s]*\d+\.\s+/gm, '')
+      // Usuń nadmiarowe białe znaki
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  };
+
   // --- TTS ---
-  const speakText = (text: string) => {
+  const speakText = async (text: string) => {
     // FIX: Sprawdzamy ustawienia z Refa, a nie ze stanu (który może być nieaktualny w closure)
     if (!settingsRef.current.enableTTS) return;
 
     window.speechSynthesis.cancel();
+    // Zatrzymaj poprzednie audio z Pipera jeśli jest
+    if (piperAudioRef.current) {
+      piperAudioRef.current.pause();
+      piperAudioRef.current = null;
+    }
 
-    const utterance = new SpeechSynthesisUtterance(text);
+    // Wyczyść markdown przed wysłaniem do TTS
+    const cleanText = stripMarkdown(text);
+
+    // Jeśli wybrano Pipera, używamy backendu
+    if (settingsRef.current.ttsModel === "piper") {
+      try {
+        const res = await fetch("http://localhost:5000/tts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: cleanText }),
+        });
+
+        if (!res.ok) {
+          console.error("Piper TTS error:", await res.text());
+          return;
+        }
+
+        const audioBlob = await res.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audio = new Audio(audioUrl);
+        
+        // Zapisz referencję do audio
+        piperAudioRef.current = audio;
+        
+        audio.onended = () => {
+          URL.revokeObjectURL(audioUrl);
+          piperAudioRef.current = null;
+        };
+        await audio.play();
+      } catch (err) {
+        console.error("Piper TTS failed:", err);
+      }
+      return;
+    }
+
+    // Używamy przeglądarki (oryginalny kod)
+    const utterance = new SpeechSynthesisUtterance(cleanText);
     // FIX: Używamy języka z Refa dla pewności
     const isPolish = settingsRef.current.language === "pl";
     const targetLang = isPolish ? "pl-PL" : "en-US";
@@ -278,6 +390,12 @@ const App: React.FC = () => {
   const handleNewChat = () => {
     // FIX: Nowy czat też powinien przerwać ewentualne mówienie
     window.speechSynthesis.cancel();
+    // Przerwij też Pipera
+    if (piperAudioRef.current) {
+      piperAudioRef.current.pause();
+      piperAudioRef.current.currentTime = 0;
+      piperAudioRef.current = null;
+    }
     const greeting =
       state.settings.language === "pl"
         ? "Cześć! Gdzie chciałbyś się wybrać?"
@@ -303,12 +421,35 @@ const App: React.FC = () => {
     if (!text.trim()) return;
     // FIX: Przerwij czytanie natychmiast po wysłaniu wiadomości
     window.speechSynthesis.cancel();
+    // Przerwij też Pipera
+    if (piperAudioRef.current) {
+      piperAudioRef.current.pause();
+      piperAudioRef.current.currentTime = 0;
+      piperAudioRef.current = null;
+    }
+    
+    console.log("🔍 DEBUG handleSendMessage - state.messages:", state.messages);
+    console.log("🔍 DEBUG handleSendMessage - messagesRef.current:", messagesRef.current);
+    
     const userMsg: Message = {
       id: Date.now().toString(),
       role: "user",
       text,
       timestamp: new Date(),
     };
+    
+    // PRZYGOTOWANIE HISTORII PRZED wysłaniem - UŻYWAMY REFA!
+    // Filtrujemy wiadomość powitalną (init) i obecne wiadomości (BEZ nowej wiadomości użytkownika)
+    const historyBeforeUserMsg = messagesRef.current
+      .filter(msg => msg.id !== "init")
+      .map(msg => ({
+        role: msg.role,
+        text: msg.text
+      }));
+
+    console.log("📤 Wysyłam historię do backendu (przed nową wiadomością):", historyBeforeUserMsg.length, "wiadomości");
+    console.log("Historia:", historyBeforeUserMsg);
+    
     setState((prev) => ({
       ...prev,
       messages: [...prev.messages, userMsg],
@@ -318,14 +459,24 @@ const App: React.FC = () => {
     setInterimTranscript("");
 
     try {
+      console.log("📨 Przygotowuję request do /chat");
+      console.log("Payload:", {
+        text,
+        language: state.settings.language,
+        history: historyBeforeUserMsg,
+      });
+
       const res = await fetch("http://localhost:5000/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           text,
           language: state.settings.language,
+          history: historyBeforeUserMsg, // <--- Wysyłamy historię przygotowaną PRZED setState
         }),
       });
+
+      console.log("✅ Odpowiedź z backendu:", res.status);
 
       const data = await res.json();
       const aiMsg: Message = {
@@ -408,6 +559,12 @@ const App: React.FC = () => {
    const startRecording = async () => {
     // FIX: Przerwij czytanie, gdy użytkownik zaczyna mówić
     window.speechSynthesis.cancel();
+    // Przerwij też Pipera
+    if (piperAudioRef.current) {
+      piperAudioRef.current.pause();
+      piperAudioRef.current.currentTime = 0;
+      piperAudioRef.current = null;
+    }
     
     // Reset flagi blokującej podwójne wiadomości
     isProcessingSpeechRef.current = false;
@@ -450,13 +607,27 @@ const App: React.FC = () => {
   };
 
    const sendAudioToBackend = async (blob: Blob) => {
+    // PRZYGOTOWANIE HISTORII PRZED setState - UŻYWAMY REFA!
+    // Filtrujemy wiadomość powitalną (init)
+    const history = messagesRef.current
+      .filter(msg => msg.id !== "init") // Wyłącz greeting
+      .map(msg => ({
+        role: msg.role,
+        text: msg.text
+      }));
+    
+    console.log("📤 Wysyłam historię (audio) do backendu:", history.length, "wiadomości");
+    console.log("Historia:", history);
+    
     setState((prev) => ({ ...prev, isProcessing: true }));
-    // FIX: Upewnij się, że nie czytamy niczego w trakcie przetwarzania
     window.speechSynthesis.cancel();
 
     const formData = new FormData();
     formData.append("audio", blob);
     formData.append("language", state.settings.language);
+    // Dodajemy historię jako string JSON do formularza
+    formData.append("history", JSON.stringify(history)); 
+
     try {
       const res = await fetch("http://localhost:5000/process_audio", {
         method: "POST",
@@ -1047,10 +1218,19 @@ const App: React.FC = () => {
                       {t.modelWeb}
                     </button>
                     <button
-                      disabled
-                      className="flex-1 py-1.5 rounded-md text-xs font-medium text-gray-300 cursor-not-allowed"
+                      onClick={() =>
+                        setState((prev) => ({
+                          ...prev,
+                          settings: { ...prev.settings, ttsModel: "piper" },
+                        }))
+                      }
+                      className={`flex-1 py-1.5 rounded-md text-[13px] font-medium transition-all ${
+                        state.settings.ttsModel === "piper"
+                          ? "bg-white shadow text-purple-600"
+                          : "text-gray-500"
+                      }`}
                     >
-                      Piper
+                      {t.modelPiper}
                     </button>
                   </div>
                 </div>
