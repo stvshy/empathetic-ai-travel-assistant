@@ -54,5 +54,4 @@ Thumbs.db
 # Linux (pliki tymczasowe Vim/Kate)
 *~
 *.swp
-frontend/tsconfig.json
-frontend/vite-env.d.ts
+

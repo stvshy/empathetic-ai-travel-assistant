@@ -7,6 +7,7 @@ import subprocess
 import json
 from dotenv import load_dotenv
 import numpy as np
+import platform
 # --- SMART FFMPEG LOADING ---
 try:
     import static_ffmpeg
@@ -35,7 +36,10 @@ client = genai.Client(api_key=API_KEY)
 # --- KONFIGURACJA PIPER TTS (Nowe) ---
 BASE = Path(__file__).resolve().parent
 # Upewnij się, że piper.exe jest w folderze 'piper_binary' wewnątrz folderu backend
-PIPER_EXE = BASE / "piper_binary" / "piper.exe"
+if platform.system() == "Windows":
+    PIPER_EXE = BASE / "piper_binary" / "piper.exe"
+else:
+    PIPER_EXE = BASE / "piper" / "piper"
 MODEL = BASE / "pl_PL-gosia-medium.onnx"
 CONFIG = BASE / "pl_PL-gosia-medium.onnx.json"
 
@@ -150,32 +154,35 @@ print("⏳ Ładowanie modelu Emocji (Wav2Vec)...")
 emotion_classifier = pipeline("audio-classification", model="superb/wav2vec2-base-superb-er")
 
 # --- START: WARM-UP (ROZGRZEWKA MODELI) ---
-print("🔥 Rozgrzewanie modeli (Ghost Run)...")
-try:
-    # Generujemy 1 sekundę ciszy
-    dummy_audio = np.zeros(16000, dtype=np.float32)
+# Wykonujemy tylko na Windowsie (lokalnie), gdzie mamy kontrolę nad czasem.
+# Na Hugging Face (Linux) pomijamy to, żeby zmieścić się w limicie czasu startu (30s).
+if platform.system() == "Windows":
+    print("🔥 Rozgrzewanie modeli (Ghost Run)...")
+    try:
+        # Generujemy 1 sekundę ciszy
+        dummy_audio = np.zeros(16000, dtype=np.float32)
 
-    # 1. Przepuszczamy ducha przez Whisper
-    stt_model.transcribe(dummy_audio, language="pl")
-    
-    # 2. Przepuszczamy ducha przez Wav2Vec
-    emotion_classifier(dummy_audio)
+        # 1. Przepuszczamy ducha przez Whisper
+        stt_model.transcribe(dummy_audio, language="pl")
+        
+        # 2. Przepuszczamy ducha przez Wav2Vec
+        emotion_classifier(dummy_audio)
 
-    # 3. Przepuszczamy ducha przez Pipera (Cache dyskowy + test binarki)
-    if PIPER_EXE.exists() and MODEL.exists():
-        # Generujemy dźwięk dla kropki ".", żeby było jak najkrócej
-        # Wynik wypluwamy w nicość (nie zapisujemy pliku na dysku, tylko sprawdzamy proces)
-        subprocess.run(
-            [str(PIPER_EXE), "-m", str(MODEL), "-c", str(CONFIG), "-f", "-", "--length_scale", "1.0"],
-            input=".".encode("utf-8"),
-            stdout=subprocess.DEVNULL, # Ignoruj wyjście audio (binarne na stdout)
-            stderr=subprocess.DEVNULL, # Ignoruj logi
-            env=ENV
-        )
+        # 3. Przepuszczamy ducha przez Pipera (Cache dyskowy + test binarki)
+        if PIPER_EXE.exists() and MODEL.exists():
+            subprocess.run(
+                [str(PIPER_EXE), "-m", str(MODEL), "-c", str(CONFIG), "-f", "-", "--length_scale", "1.0"],
+                input=".".encode("utf-8"),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                env=ENV
+            )
 
-    print("🚀 Wszystkie systemy (Whisper, Emotion, Piper) gotowe do akcji!")
-except Exception as e:
-    print(f"⚠️ Ostrzeżenie: Nie udało się w pełni rozgrzać modeli (błąd: {e})")
+        print("🚀 Wszystkie systemy (Whisper, Emotion, Piper) gotowe do akcji!")
+    except Exception as e:
+        print(f"⚠️ Ostrzeżenie: Nie udało się w pełni rozgrzać modeli (błąd: {e})")
+else:
+    print("🐧 Wykryto środowisko Linux (Chmura) - Pomijam 'Ghost Run' dla szybszego startu.")
 # --- KONIEC WARM-UP ---
 
 print("✅ Backend gotowy!")
@@ -388,4 +395,7 @@ def tts():
         return jsonify({"error": str(e)}), 500
     
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # Lokalnie (brak zmiennej PORT) użyje 5000.
+    # Na Hugging Face (jest zmienna PORT) użyje 7860.
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port, debug=True)

@@ -1,14 +1,25 @@
 # ✈️ Empathetic AI Travel Assistant
 
 <div align="center">
-  <img src="https://img.shields.io/badge/Sprint-3_Completed-success" alt="Sprint Status" />
-  <img src="https://img.shields.io/badge/Stack-React_|_TypeScript_|_Vite-blue" alt="Tech Stack" />
-  <img src="https://img.shields.io/badge/AI-Gemini_Flash_Lite_Latest-orange" alt="AI Model" />
+  <img src="https://img.shields.io/badge/Status-Live_&_Production_Ready-success" alt="Status" />
+  <img src="https://img.shields.io/badge/Stack-React_|_TypeScript_|_Python-blue" alt="Tech Stack" />
+  <img src="https://img.shields.io/badge/AI-Gemini_Flash_Lite-orange" alt="AI Model" />
 </div>
 
 <br />
 
 > **Your personal travel planner that senses your emotions.**
+
+
+## 🚀 Live Demo
+
+Check out the live application here:
+### 👉 [Empathetic Travel Assistant (Live)](https://empathetic-ai-travel-assistant.vercel.app)
+
+> **Note:** The backend is hosted on a **Free Tier (Hugging Face Spaces)**.
+> If the application doesn't respond immediately, please wait **1-2 minutes** for the server to wake up from sleep mode.
+
+---
 
 <!-- --- SCREENSHOTS SECTION START --- -->
 <div align="center">
@@ -34,7 +45,11 @@
 This project is an AI-powered travel assistant designed to plan the perfect trip based on your preferences, budget, and logistical needs.
 
 **Current Status:**
-The application operates as a Hybrid System. The Backend (Python) processes audio, detects emotions (using Wav2Vec), and transcribes speech (Whisper), while the Frontend (React) provides a modern chat interface. The **Google Gemini** model acts as the reasoning engine.
+**Architecture:**
+The application operates as a **Universal Hybrid System**. It can run fully locally (for maximum performance) or in the cloud.
+- **Frontend:** Hosted on **Vercel** (Global CDN).
+- **Backend:** Containerized with **Docker** and hosted on **Hugging Face Spaces**.
+- **AI Core:** Processes audio, detects emotions (Wav2Vec), transcribes speech (Whisper), and uses **Google Gemini** for reasoning.
 
 ### ✨ Key Features
 
@@ -51,17 +66,24 @@ The application operates as a Hybrid System. The Backend (Python) processes audi
 - **Core:** Python 3.10+, Flask
 - **Speech-to-Text:** OpenAI Whisper
 - **Emotion Analysis:** HuggingFace Transformers (Wav2Vec)
+- **Text-to-Speech:** Piper TTS
 - **Tools:** FFmpeg, NumPy
 
 ### Frontend
 - **Core:** React 19, TypeScript, Vite
 - **Styling:** Tailwind CSS
 - **API:** Web Speech API (Input fallback)
+
+### Infrastructure & Deployment
+- **Containerization:** Docker
+- **Hosting:** Vercel (Frontend), Hugging Face Spaces (Backend)
+- **CI/CD:** Git & Vercel Auto-Deployment
+
 ---
 
 ## 🚀 Run Locally
 
-Follow these steps to get the project running on your local machine.
+You can run the entire project locally on your machine.
 
 ### Prerequisites
 
@@ -171,10 +193,11 @@ Common model names:
 
 ## 🗺️ Roadmap
 
-- [x] **Sprint 1:** Core UI & LLM Integration.
-- [x] **Sprint 2:** Python Backend & Whisper Integration.
-- [x] **Sprint 3:** Emotion Recognition (Wav2Vec) & Logic.
-- [ ] **Sprint 4:** Server-side Text-to-Speech (Piper) & Final Polish.
+- [x] Core UI & LLM Integration.
+- [x] Python Backend & Whisper Integration.
+- [x] Emotion Recognition (Wav2Vec) & Logic.
+- [x] Server-side Text-to-Speech (Piper).
+- [x] Cloud Deployment (Docker/HF/Vercel).
 
 ---
 
