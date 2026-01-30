@@ -207,6 +207,8 @@ const App: React.FC = () => {
   // Ref do śledzenia czy greeting został już ustawiony
   const greetingInitializedRef = useRef(false);
   const previousLanguageRef = useRef(state.settings.language);
+  // Ref do śledzenia tekstu przed rozpoczęciem nagrywania (fix dla duplikatów)
+  const textBeforeRecordingRef = useRef("");
   // Ref do aktualnie odtwarzanego audio z Pipera
   const piperAudioRef = useRef<HTMLAudioElement | null>(null);
   const [isBackendConnected, setIsBackendConnected] = useState(false);
@@ -561,71 +563,64 @@ const App: React.FC = () => {
       recognition.interimResults = true;
 
       recognition.onresult = (event: any) => {
-        let finalChunk = "";
-        let interimChunk = "";
+        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
 
-        // Pętla po wynikach
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
+        // RESETUJEMY transkrypt i budujemy od nowa (fix dla Androida/Chrome)
+        let fullFinal = "";
+        let fullInterim = "";
+
+        // Zawsze iterujemy od 0, by uniknąć duplikatów przy błędnym resultIndex
+        for (let i = 0; i < event.results.length; ++i) {
           if (event.results[i].isFinal) {
-            finalChunk += event.results[i][0].transcript;
+            fullFinal += event.results[i][0].transcript;
           } else {
-            interimChunk += event.results[i][0].transcript;
+            fullInterim += event.results[i][0].transcript;
           }
         }
 
-        // --- 1. OBSŁUGA FINALNEGO TEKSTU (Zatwierdzone słowa) ---
-        if (finalChunk) {
-          const finalTrimmed = finalChunk.trim();
-          
-          if (isMobile) {
-            // MOBILNIE: Dopisujemy do inputa i resetujemy timer wysłania
-            setInputText((prev) => {
-              // Strażnik powtórzeń (Android fix)
-              if (prev.trim().endsWith(finalTrimmed)) {
-                return prev;
-              }
-              return prev ? `${prev} ${finalTrimmed}` : finalTrimmed;
-            });
+        const finalTrimmed = fullFinal.trim();
+        const interimTrimmed = fullInterim.trim();
+        
+        // 1. BUDOWANIE TEKSTU
+        const base = textBeforeRecordingRef.current;
+        // Dodaj spację tylko jeśli mamy bazę i nowy tekst
+        const sep1 = base && finalTrimmed ? " " : "";
+        // Dodaj spację między finalnym a tymczasowym
+        const sep2 = (base || finalTrimmed) && interimTrimmed ? " " : "";
+        
+        let newText = "";
 
-            // Resetujemy timer ciszy (bo użytkownik właśnie skończył zdanie, może powie kolejne)
-            if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-            
-            silenceTimerRef.current = setTimeout(() => {
-              // Wyślij dopiero po 2 sek ciszy od ostatniego FINALNEGO zdania
+        if (isMobile) {
+            // Na mobile pokazujemy WSZYSTKO w głównym inpucie (final + interim)
+            newText = `${base}${sep1}${finalTrimmed}${sep2}${interimTrimmed}`;
+            // Czyścimy osobny podgląd, bo jest w inpucie
+            setInterimTranscript(""); 
+        } else {
+            // Na PC w inpucie tylko zatwierdzone, interim w dymku
+            newText = `${base}${sep1}${finalTrimmed}`;
+            setInterimTranscript(interimTrimmed);
+        }
+
+        // Aktualizujemy input (tylko jeśli się zmienił, ale tutaj zawsze nadpisujemy dla spójności)
+        setInputText(newText);
+
+        // 2. AUTO-WYSYŁANIE (MOBILE)
+        // Jeśli mamy finalny tekst i BRAK interim (użytkownik przestał mówić) -> ustawiamy timer
+        if (isMobile && finalTrimmed && !interimTrimmed) {
+             silenceTimerRef.current = setTimeout(() => {
               if (!isProcessingSpeechRef.current) {
                 isProcessingSpeechRef.current = true;
-                // Pobieramy aktualny stan inputa w hackowy sposób lub wysyłamy to co mamy
-                // W React setTimeout ma closure starego stanu, więc lepiej wywołać click na przycisku
-                // lub użyć refa. Tutaj użyjemy triku z setInputText żeby dostać najnowszy stan
-                setInputText(currentText => {
-                    handleSendMessage(currentText); 
-                    return ""; // Czyścimy input po wysłaniu
-                });
+                handleSendMessage(newText.trim()); 
                 stopRecording();
               }
             }, 2000);
-
-          } else {
-            // KOMPUTER: Wysyłamy od razu
-            if (!isProcessingSpeechRef.current) {
-              isProcessingSpeechRef.current = true;
-              handleSendMessage(finalTrimmed);
-              stopRecording();
+        } else if (!isMobile && finalTrimmed) {
+             // PC: Wysyłamy natychmiast po wykryciu finalnego tekstu (zachowanie oryginalne)
+             if (!isProcessingSpeechRef.current) {
+                isProcessingSpeechRef.current = true;
+                handleSendMessage(newText.trim());
+                stopRecording();
             }
-          }
-        }
-
-        // --- 2. OBSŁUGA TYMCZASOWEGO TEKSTU (Podgląd na żywo) ---
-        if (interimChunk) {
-          // Na mobile też chcemy widzieć co mówimy, ale nie w głównym inpucie (bo to psuje logikę),
-          // tylko w tym szarym polu pod spodem.
-          // Jeśli na mobile mówisz dalej (interim), resetujemy timer, żeby nie ucięło w połowie słowa.
-          if (isMobile && silenceTimerRef.current) {
-             clearTimeout(silenceTimerRef.current);
-          }
-          setInterimTranscript(interimChunk);
-        } else {
-          setInterimTranscript("");
         }
       };
 
@@ -668,6 +663,10 @@ const App: React.FC = () => {
     isProcessingSpeechRef.current = false;
 
     setState((prev) => ({ ...prev, isRecording: true, error: null }));
+    
+    // Zapisz stan inputa przed nagrywaniem
+    textBeforeRecordingRef.current = inputText;
+
     if (state.settings.sttModel === "browser") {
       try {
         recognitionRef.current?.start();
@@ -986,7 +985,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
           </button>
 
           <div className="flex-1 h-12 sm:h-14 bg-gray-100 rounded-full px-4 sm:px-5 flex items-center transition-all relative overflow-hidden">
-            {state.isRecording ? (
+            {state.isRecording && !isMobile ? (
               <SoundWave />
             ) : (
               <>
