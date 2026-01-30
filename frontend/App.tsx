@@ -709,7 +709,8 @@ const App: React.FC = () => {
   };
 
   return (
-<div className="flex flex-col h-screen h-[100dvh] w-full sm:max-w-2xl sm:mx-auto bg-white sm:shadow-2xl relative overflow-hidden">      {" "}
+<div className="flex flex-col h-screen h-[100dvh] w-full sm:max-w-2xl sm:mx-auto bg-white sm:shadow-2xl relative overflow-hidden"
+style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
       {/* --- HEADER --- */}
       <style>{`
         .custom-scrollbar::-webkit-scrollbar {
