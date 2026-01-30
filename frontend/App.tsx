@@ -22,6 +22,8 @@ const TRANSLATIONS = {
     voiceModelLabel: "Model Głosu (TTS)",
     whisperWarning:
       "Whisper wydłuża czas odpowiedzi i wymaga wciśnięcia przycisku, kiedy skończysz mówić (nie działa automatycznie)",
+    piperWarning:
+      "Piper wymaga przetworzenia na serwerze – głos asystenta usłyszysz ze znacznym opóźnieniem.",
     webDesc: "Szybki, brak emocji",
     whisperDesc: "Wolniejszy, dokładniejszy",
     featuresLabel: "Funkcje",
@@ -57,6 +59,8 @@ const TRANSLATIONS = {
     voiceModelLabel: "Voice Model (TTS)",
     whisperWarning:
       "Whisper increases response time and requires you to press a button when you finish speaking (it doesn't work automatically)",
+    piperWarning:
+      "Piper requires processing on the server – you will hear the assistant's voice with a significant delay.",
     webDesc: "Fast, no emotions",
     whisperDesc: "Slower, more accurate",
     featuresLabel: "Features",
@@ -678,7 +682,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen max-w-2xl mx-auto bg-white shadow-2xl relative overflow-hidden">
+    <div className="flex flex-col h-screen w-full sm:max-w-2xl sm:mx-auto bg-white sm:shadow-2xl relative overflow-hidden">
       {" "}
       {/* --- HEADER --- */}
       <style>{`
@@ -692,35 +696,40 @@ const App: React.FC = () => {
           background-color: rgba(156, 163, 175, 0.5);
           border-radius: 20px;
         }
+        @media (max-width: 640px) {
+          body {
+            overflow: hidden;
+          }
+        }
       `}</style>
-      <header className="bg-white border-b px-6 py-4 flex items-center justify-between z-10">
-        <div className="flex items-center gap-3">
-          <div className="bg-blue-100 p-2 rounded-xl text-blue-600">
-            <i className="fas fa-plane-departure text-xl"></i>
+      <header className="bg-white border-b px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between z-10">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="bg-blue-100 p-1.5 sm:p-2 rounded-xl text-blue-600 flex-shrink-0">
+            <i className="fas fa-plane-departure text-base sm:text-xl"></i>
           </div>
-          <div>
-            {/* Tytuł: powrót do text-lg */}
-            <h1 className="font-bold text-gray-800 text-lg">{t.title}</h1>
+          <div className="min-w-0">
+            {/* Tytuł: responsive */}
+            <h1 className="font-bold text-gray-800 text-base sm:text-lg truncate">{t.title}</h1>
 
             {/* Status Zmienny */}
             <p
               className={`text-xs font-medium flex items-center gap-1 ${
                 isBackendConnected ? "text-green-500" : "text-red-500"
-              }`}
+              } truncate`}
             >
               <span
-                className={`w-1.5 h-1.5 rounded-full ${
+                className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
                   isBackendConnected
                     ? "bg-green-500 animate-pulse"
                     : "bg-red-500"
                 }`}
               ></span>
-              {isBackendConnected ? t.available : t.unavailable}
+              <span className="truncate">{isBackendConnected ? t.available : t.unavailable}</span>
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-shrink-0">
           {/* Quick Toggles (Visible outside settings) */}
           <button
             onClick={() => {
@@ -734,15 +743,15 @@ const App: React.FC = () => {
                 },
               }));
             }}
-            className={`rounded-full flex items-center justify-center transition-all ${
+            className={`rounded-full flex items-center justify-center transition-all text-base sm:text-lg ${
               state.settings.enableTTS
-                ? "w-11 h-11 bg-green-100 text-green-600"
+                ? "w-9 h-9 sm:w-11 sm:h-11 bg-green-100 text-green-600"
                 : "w-9 h-9 bg-transparent text-gray-300 hover:text-gray-400"
             }`}
             title={t.enableTTS}
           >
             <i
-              className={`fas text-lg ${
+              className={`fas ${
                 state.settings.enableTTS ? "fa-volume-high" : "fa-volume-xmark"
               }`}
             ></i>
@@ -761,15 +770,15 @@ const App: React.FC = () => {
                 },
               }))
             }
-            className={`rounded-full flex items-center justify-center transition-all ${
+            className={`rounded-full flex items-center justify-center transition-all text-base sm:text-lg ${
               state.settings.enableEmotions
-                ? "w-11 h-11 bg-purple-100 text-purple-600"
+                ? "w-9 h-9 sm:w-11 sm:h-11 bg-purple-100 text-purple-600"
                 : "w-9 h-9 bg-transparent text-gray-300 hover:text-gray-400"
             }`}
             title={t.enableEmotions}
           >
             <i
-              className={`fas text-lg ${
+              className={`fas ${
                 state.settings.enableEmotions ? "fa-face-smile" : "fa-face-meh"
               }`}
             ></i>
@@ -781,10 +790,10 @@ const App: React.FC = () => {
           {/* New Chat (Clean Icon) */}
           <button
             onClick={handleNewChat}
-            className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-blue-600 transition-colors"
+            className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center text-gray-400 hover:text-blue-600 transition-colors text-base sm:text-xl"
             title={t.newChat}
           >
-            <i className="fas fa-plus text-xl"></i>
+            <i className="fas fa-plus"></i>
           </button>
 
           {/* Settings */}
@@ -792,15 +801,15 @@ const App: React.FC = () => {
             onClick={() =>
               setState((prev) => ({ ...prev, showSettings: true }))
             }
-            className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
+            className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors text-base sm:text-xl"
             title={t.settingsTitle}
           >
-            <i className="fas fa-cog text-xl"></i>
+            <i className="fas fa-cog"></i>
           </button>
         </div>
       </header>
       {/* --- CHAT --- */}
-      <main className="flex-1 overflow-y-auto p-6 space-y-2 bg-gray-50/50">
+      <main className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-2 bg-gray-50/50">
         {state.messages.map((msg) => (
           <ChatBubble key={msg.id} message={msg} />
         ))}
@@ -835,7 +844,7 @@ const App: React.FC = () => {
         <div ref={chatEndRef} />
       </main>
       {/* --- FOOTER --- */}
-      <footer className="p-4 bg-white border-t">
+      <footer className="p-3 sm:p-4 bg-white border-t">
         {state.error && (
           <div className="text-red-500 text-xs mb-2 text-center">
             {state.error}
@@ -846,7 +855,7 @@ const App: React.FC = () => {
           <button
             onClick={state.isRecording ? stopRecording : startRecording}
             className={`
-              h-14 w-14 rounded-full flex-shrink-0 flex items-center justify-center transition-all shadow-md
+              h-12 sm:h-14 w-12 sm:w-14 rounded-full flex-shrink-0 flex items-center justify-center transition-all shadow-md
               ${
                 state.isRecording
                   ? "bg-red-500 shadow-red-200 animate-pulse"
@@ -860,14 +869,14 @@ const App: React.FC = () => {
               className={`fas ${
                 state.isRecording
                   ? state.settings.sttModel !== "browser"
-                    ? "fa-paper-plane text-xl"
+                    ? "fa-paper-plane text-lg sm:text-xl"
                     : "fa-stop"
-                  : "fa-microphone text-xl"
+                  : "fa-microphone text-lg sm:text-xl"
               }`}
             ></i>
           </button>
 
-          <div className="flex-1 h-14 bg-gray-100 rounded-full px-5 flex items-center transition-all relative overflow-hidden">
+          <div className="flex-1 h-12 sm:h-14 bg-gray-100 rounded-full px-4 sm:px-5 flex items-center transition-all relative overflow-hidden">
             {state.isRecording ? (
               <SoundWave />
             ) : (
@@ -882,13 +891,13 @@ const App: React.FC = () => {
                     }
                   }}
                   placeholder={t.inputPlaceholder}
-                  className="bg-transparent w-full h-full outline-none text-gray-700 placeholder-gray-400 text-sm resize-none py-4 pr-3 overflow-y-auto custom-scrollbar"
+                  className="bg-transparent w-full h-full outline-none text-gray-700 placeholder-gray-400 text-sm resize-none py-3 sm:py-4 pr-3 overflow-y-auto custom-scrollbar"
                 />
                 <button
                   onClick={() => handleSendMessage(inputText)}
-                  className="text-blue-600 hover:text-blue-800 ml-2"
+                  className="text-blue-600 hover:text-blue-800 ml-2 flex-shrink-0"
                 >
-                  <i className="fas fa-paper-plane text-xl"></i>
+                  <i className="fas fa-paper-plane text-lg sm:text-xl"></i>
                 </button>
               </>
             )}
@@ -901,10 +910,10 @@ const App: React.FC = () => {
       </footer>
       {/* --- SETTINGS MODAL --- */}
       {state.showSettings && (
-        <div className="absolute inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh]">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-gray-800">
+        <div className="absolute inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white w-full sm:max-w-sm rounded-3xl p-4 sm:p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh] mx-auto">
+            <div className="flex justify-between items-center mb-4 sm:mb-6">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-800">
                 {t.settingsTitle}
               </h2>
               <button
@@ -1232,6 +1241,11 @@ const App: React.FC = () => {
                       {t.modelPiper}
                     </button>
                   </div>
+                  {state.settings.ttsModel === "piper" && (
+                    <p className="text-[10px] text-orange-500 mt-1 ml-1">
+                      {t.piperWarning}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
