@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { Message, AppState, Settings } from "./types";
 import ChatBubble from "./components/ChatBubble";
 
+const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
 // --- SŁOWNIK TŁUMACZEŃ ---
 const TRANSLATIONS = {
   pl: {
@@ -10,6 +12,7 @@ const TRANSLATIONS = {
     unavailable: "Niedostępny",
     inputPlaceholder: "Napisz wiadomość...",
     listening: "Słucham...",
+    mobileListeningHint: "Słucham... (przestań mówić, aby wysłać)", 
     processing: "Przetwarzam...",
     serverError: "Błąd serwera.",
     micError: "Błąd mikrofonu",
@@ -48,6 +51,7 @@ const TRANSLATIONS = {
     inputPlaceholder: "Type a message...",
     listening: "Listening...",
     processing: "Processing...",
+    mobileListeningHint: "Listening... (pause to send)",
     serverError: "Server error.",
     micError: "Microphone error",
     backendError: "Backend error.",
@@ -144,6 +148,8 @@ const App: React.FC = () => {
 
   // Ref do śledzenia aktualnych messages 
   const messagesRef = useRef(state.messages);
+
+  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Aktualizacja refa przy każdej zmianie state.messages
   useEffect(() => {
@@ -445,6 +451,10 @@ const App: React.FC = () => {
   };
 
   const handleSendMessage = async (text: string) => {
+    if (silenceTimerRef.current) {
+     clearTimeout(silenceTimerRef.current);
+     silenceTimerRef.current = null;
+  }
     if (!text.trim()) return;
     // Przerwij czytanie natychmiast po wysłaniu wiadomości
     if ('speechSynthesis' in window) {
@@ -531,13 +541,14 @@ const App: React.FC = () => {
   };
 
   // --- WEB SPEECH API ---
-   useEffect(() => {
+  useEffect(() => {
     const { webkitSpeechRecognition, SpeechRecognition } =
       window as unknown as IWindow;
     const Recognition = SpeechRecognition || webkitSpeechRecognition;
 
     if (Recognition) {
       const recognition = new Recognition();
+      // Ustawiamy język
       recognition.lang = state.settings.language === "pl" ? "pl-PL" : "en-US";
       recognition.continuous = true;
       recognition.interimResults = true;
@@ -545,6 +556,7 @@ const App: React.FC = () => {
       recognition.onresult = (event: any) => {
         let final = "";
         let interim = "";
+        
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           if (event.results[i].isFinal) {
             final += event.results[i][0].transcript;
@@ -553,13 +565,43 @@ const App: React.FC = () => {
           }
         }
 
-        // Sprawdź flagę ref, czy już nie przetwarzamy
-        if (final && !isProcessingSpeechRef.current) {
-          isProcessingSpeechRef.current = true; // Zablokuj kolejne wywołania
-          handleSendMessage(final);
-          stopRecording(); // To wywoła stop(), a onend odblokuje interfejs
+        if (final) {
+          if (isMobile) {
+            // --- LOGIKA NA TELEFON (Efekt pisania na żywo + Auto-wysyłanie) ---
+            setInputText((prev) => {
+              // 1. Dopisujemy słowo do pola tekstowego natychmiast (widzisz je od razu)
+              const newText = prev ? `${prev} ${final}` : final;
+              
+              // 2. Resetujemy licznik ciszy (bo użytkownik wciąż mówi)
+              if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+              
+              // 3. Ustawiamy nowy licznik: Jeśli będzie cisza przez 2 sekundy -> WYŚLIJ
+              silenceTimerRef.current = setTimeout(() => {
+                if (!isProcessingSpeechRef.current) {
+                   isProcessingSpeechRef.current = true;
+                   handleSendMessage(newText); // Wysyła całość
+                   stopRecording();
+                }
+              }, 2000); // <--- TU ZMIENIASZ CZAS OCZEKIWANIA (2000ms = 2 sekundy)
+              
+              return newText;
+            });
+          } else {
+            // --- LOGIKA NA KOMPUTER (Bez zmian - działa błyskawicznie) ---
+            if (!isProcessingSpeechRef.current) {
+              isProcessingSpeechRef.current = true;
+              handleSendMessage(final);
+              stopRecording();
+            }
+          }
         } else {
+          // To pokazuje szary tekst (ten, którego telefon jeszcze nie jest pewien)
           setInterimTranscript(interim);
+          
+          // Jeśli telefon ciągle słucha (interim), też resetujemy licznik wysłania
+           if (isMobile && silenceTimerRef.current) {
+              clearTimeout(silenceTimerRef.current);
+           }
         }
       };
 
@@ -567,14 +609,16 @@ const App: React.FC = () => {
       
       recognition.onend = () => {
         if (state.isRecording && state.settings.sttModel === "browser") {
-          setState((prev) => ({ ...prev, isRecording: false }));
+           // Na komputerze kończymy nagrywanie.
+           // Na telefonie ignorujemy 'onend', bo onend strzela tam za często.
+           // Polegamy na naszym timerze (setTimeout) powyżej.
+           if (!isMobile) {
+              setState((prev) => ({ ...prev, isRecording: false }));
+           } 
         }
-        // Resetujemy flagę przetwarzania (choć przy handleSendMessage i tak się resetuje przez rerender, ale dla bezpieczeństwa)
       };
 
       recognitionRef.current = recognition;
-
-      // Funkcja czyszcząca w useEffect (cleanup) - zapobiega podwójnym instancjom
       return () => {
         if (recognitionRef.current) {
           recognitionRef.current.abort(); 
@@ -582,7 +626,7 @@ const App: React.FC = () => {
         }
       };
     }
-  }, [state.settings.language, state.settings.sttModel]); 
+  }, [state.settings.language, state.settings.sttModel]);
 
   // --- RECORDING ---
    const startRecording = async () => {
@@ -630,6 +674,17 @@ const App: React.FC = () => {
   };
 
   const stopRecording = () => {
+  if (silenceTimerRef.current) {
+     clearTimeout(silenceTimerRef.current);
+     silenceTimerRef.current = null;
+  }
+  // Jeśli jest jakiś tekst w polu na mobile i klikniesz stop -> wyślij go
+  if (isMobile && inputText.trim() && state.settings.sttModel === "browser") {
+      if (!isProcessingSpeechRef.current) {
+          isProcessingSpeechRef.current = true;
+          handleSendMessage(inputText);
+      }
+  }
     setState((prev) => ({ ...prev, isRecording: false }));
     setInterimTranscript("");
     state.settings.sttModel === "browser"
@@ -836,12 +891,12 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
           <ChatBubble key={msg.id} message={msg} />
         ))}
 
-        {state.isRecording && state.settings.sttModel !== "browser" && (
-          <div className="flex justify-end mb-4">
-            <div className="max-w-[80%] rounded-2xl px-4 py-3 bg-gray-100 text-gray-500 rounded-tr-none border border-gray-200 opacity-80 italic">
-              <p className="text-sm">{t.recordingStart}</p>
-            </div>
-          </div>
+        {state.isRecording && state.settings.sttModel === "browser" && isMobile && (
+           <div className="flex justify-center mb-2 animate-pulse">
+              <p className="text-xs text-gray-500 italic bg-white/80 px-3 py-1 rounded-full shadow-sm">
+                 {t.mobileListeningHint}
+              </p>
+           </div>
         )}
 
         {interimTranscript && (
