@@ -48,6 +48,7 @@ const TRANSLATIONS = {
     profileFastDesc: "Przeglądarka • Bez Emocji",
     profileEmp: "Empatyczny ❤️",
     profileEmpDesc: "Whisper AI • Emocje",
+    tapToPlayTTS: "Kliknij, aby odsłuchać odpowiedź",
     copyright: "Mateusz Staszków. Wszelkie prawa zastrzeżone.",
   },
   en: {
@@ -87,6 +88,7 @@ const TRANSLATIONS = {
     profileFastDesc: "Browser • No Emotions",
     profileEmp: "Empathetic ❤️",
     profileEmpDesc: "Whisper AI • Emotions",
+    tapToPlayTTS: "Tap to play the assistant reply",
     copyright: "Mateusz Staszków. All rights reserved.",
   },
 };
@@ -143,6 +145,8 @@ const App: React.FC = () => {
   const [availableVoices, setAvailableVoices] = useState<
     SpeechSynthesisVoice[]
   >([]);
+
+  const [pendingTtsText, setPendingTtsText] = useState<string | null>(null);
 
   // Ref do przechowywania aktualnych ustawień 
   const settingsRef = useRef(state.settings);
@@ -207,6 +211,7 @@ const App: React.FC = () => {
   const previousLanguageRef = useRef(state.settings.language);
   // Ref do aktualnie odtwarzanego audio z Pipera
   const piperAudioRef = useRef<HTMLAudioElement | null>(null);
+  const ttsUnlockedRef = useRef(false);
   // Mobile WebSpeech: przechowuj bazowy tekst + najnowsze transkrypty (Android często zwraca kumulatywnie)
   const mobileBaseTextRef = useRef("");
   const mobileFinalRef = useRef("");
@@ -335,6 +340,43 @@ const App: React.FC = () => {
   };
 
   // --- TTS ---
+  const unlockWebTtsIfNeeded = () => {
+    if (!isMobile) return;
+    if (typeof window === "undefined") return;
+    if (!("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)) return;
+    if (!settingsRef.current.enableTTS) return;
+    if (settingsRef.current.ttsModel !== "browser") return;
+
+    try {
+      // iOS/Android: musi być wywołane w ramach user-gesture.
+      // Pusty string bywa ignorowany, więc dajemy minimalny znak i wyciszamy.
+      const u = new SpeechSynthesisUtterance(".");
+      u.volume = 0;
+      u.rate = 10;
+      u.onstart = () => {
+        ttsUnlockedRef.current = true;
+      };
+      u.onend = () => {
+        ttsUnlockedRef.current = true;
+      };
+      u.onerror = () => {
+        // Nie blokuj - samo wywołanie bywa wystarczające na części przeglądarek.
+        ttsUnlockedRef.current = true;
+      };
+
+      if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+      window.speechSynthesis.speak(u);
+
+      // Nie anulujemy natychmiast (to było głównym powodem braku efektu).
+      // Jeśli platforma i tak utnie, ustawiamy unlock po chwili.
+      setTimeout(() => {
+        ttsUnlockedRef.current = true;
+      }, 200);
+    } catch (e) {
+      console.warn("⚠️ Nie udało się odblokować Web TTS:", e);
+    }
+  };
+
   const speakText = async (text: string) => {
     // Sprawdzamy ustawienia z Refa, a nie ze stanu (który może być nieaktualny w closure)
     if (!settingsRef.current.enableTTS) return;
@@ -430,6 +472,19 @@ const App: React.FC = () => {
         window.speechSynthesis.resume();
       }
 
+      let didStart = false;
+      utterance.onstart = () => {
+        didStart = true;
+        setPendingTtsText(null);
+      };
+      utterance.onend = () => {
+        setPendingTtsText(null);
+      };
+      utterance.onerror = (e) => {
+        console.warn("Web TTS error:", e);
+        if (isMobile) setPendingTtsText(cleanText);
+      };
+
       window.speechSynthesis.speak(utterance);
       
       // FIX 2: Dodatkowe wznowienie po 100ms (iOS workaround)
@@ -439,6 +494,14 @@ const App: React.FC = () => {
             window.speechSynthesis.resume();
           }
         }, 100);
+
+        // Jeśli mobile zablokował autoplay (brak user-gesture), pokaż fallback.
+        setTimeout(() => {
+          const notSpeaking = !window.speechSynthesis.speaking;
+          if (!didStart && notSpeaking && settingsRef.current.enableTTS && settingsRef.current.ttsModel === "browser") {
+            setPendingTtsText(cleanText);
+          }
+        }, 400);
       }
     }
   };
@@ -475,25 +538,13 @@ const App: React.FC = () => {
     setInterimTranscript("");
   };
 
-  const handleSendMessage = async (text: string) => {
+  const handleSendMessage = async (text: string, fromUserGesture: boolean = false) => {
     if (silenceTimerRef.current) {
      clearTimeout(silenceTimerRef.current);
      silenceTimerRef.current = null;
   }
     if (!text.trim()) return;
-    
-    // FIX dla mobile TTS: Inicjalizuj speechSynthesis przy user interaction
-    if (isMobile && 'speechSynthesis' in window && settingsRef.current.enableTTS) {
-      try {
-        const dummyUtterance = new SpeechSynthesisUtterance('');
-        dummyUtterance.volume = 0;
-        window.speechSynthesis.speak(dummyUtterance);
-        console.log('✅ TTS odblokowane przez wysłanie wiadomości');
-      } catch (e) {
-        console.warn('⚠️ Nie udało się odblokować TTS:', e);
-      }
-    }
-    
+
     // Przerwij czytanie natychmiast po wysłaniu wiadomości
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
@@ -503,6 +554,11 @@ const App: React.FC = () => {
       piperAudioRef.current.pause();
       piperAudioRef.current.currentTime = 0;
       piperAudioRef.current = null;
+    }
+
+    // Mobile: odblokuj Web TTS tylko jeśli to faktycznie user-gesture
+    if (fromUserGesture) {
+      unlockWebTtsIfNeeded();
     }
     
     console.log("🔍 DEBUG handleSendMessage - state.messages:", state.messages);
@@ -706,19 +762,8 @@ const App: React.FC = () => {
       piperAudioRef.current = null;
     }
     
-    // FIX dla mobile TTS: Inicjalizuj speechSynthesis przy user gesture
-    // Przeglądarka mobilna wymaga "user interaction" do odblokowania TTS
-    if (isMobile && 'speechSynthesis' in window && settingsRef.current.enableTTS) {
-      try {
-        // Próba uruchomienia pustego utterance aby odblokować TTS
-        const dummyUtterance = new SpeechSynthesisUtterance('');
-        dummyUtterance.volume = 0; // Cicho
-        window.speechSynthesis.speak(dummyUtterance);
-        console.log('✅ TTS odblokowane przez user gesture');
-      } catch (e) {
-        console.warn('⚠️ Nie udało się odblokować TTS:', e);
-      }
-    }
+    // Mobile: odblokuj Web TTS w user-gesture (klik mikrofonu)
+    unlockWebTtsIfNeeded();
     
     // Reset flagi blokującej podwójne wiadomości
     isProcessingSpeechRef.current = false;
@@ -780,6 +825,8 @@ const App: React.FC = () => {
 
     if (toSend && !isProcessingSpeechRef.current) {
       isProcessingSpeechRef.current = true;
+      // stopRecording jest wywoływany przy kliknięciu stop (user-gesture), ale też z timera.
+      // W tym miejscu nie mamy pewności, więc nie wymuszamy fromUserGesture.
       handleSendMessage(toSend);
     }
   }
@@ -1045,6 +1092,21 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
           </div>
         )}
 
+        {/* Mobile fallback: jeśli Web TTS zablokowany, pokaż przycisk do ręcznego odtworzenia */}
+        {isMobile && state.settings.enableTTS && state.settings.ttsModel === "browser" && pendingTtsText && (
+          <div className="mb-2 flex justify-center">
+            <button
+              onClick={() => {
+                unlockWebTtsIfNeeded();
+                speakText(pendingTtsText);
+              }}
+              className="text-xs font-semibold px-4 py-2 rounded-full bg-blue-600 text-white shadow hover:bg-blue-700 transition-colors"
+            >
+              {t.tapToPlayTTS}
+            </button>
+          </div>
+        )}
+
         <div className="flex items-center gap-2 mb-2">
           <button
             onClick={state.isRecording ? stopRecording : startRecording}
@@ -1081,14 +1143,14 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
-                      handleSendMessage(inputText);
+                      handleSendMessage(inputText, true);
                     }
                   }}
                   placeholder={t.inputPlaceholder}
                   className="bg-transparent w-full h-full outline-none text-gray-700 placeholder-gray-400 text-sm resize-none py-3 sm:py-4 pr-3 overflow-y-auto custom-scrollbar"
                 />
                 <button
-                  onClick={() => handleSendMessage(inputText)}
+                  onClick={() => handleSendMessage(inputText, true)}
                   className="text-blue-600 hover:text-blue-800 ml-2 flex-shrink-0"
                 >
                   <i className="fas fa-paper-plane text-lg sm:text-xl"></i>
