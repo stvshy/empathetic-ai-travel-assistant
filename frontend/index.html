@@ -22,28 +22,49 @@
       rel="stylesheet"
     />
     <style>
-      body {
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      
+      html, body {
+        width: 100%;
+        height: 100%;
         font-family: "Inter", sans-serif;
+        overflow-x: hidden;
       }
-      .gradient-bg {
+      
+      body {
         background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        position: relative;
       }
+      
       .emoji {
         font-family: "Noto Color Emoji", sans-serif;
       }
       
-      /* Responsywne dostosowanie na telefonach */
+      #root {
+        position: relative;
+        width: 100%;
+        min-height: 100vh;
+        min-height: 100svh;
+        z-index: 1;
+      }
+      
+      /* Mobile specific fixes */
       @media (max-width: 640px) {
-        html, body {
-          width: 100%;
-          height: auto;
+        html {
+          height: 100%;
+        }
+        body {
+          min-height: 100vh;
           min-height: 100svh;
-          overflow-x: hidden;
+          height: auto;
         }
         #root {
-          width: 100%;
-          height: auto;
-          min-height: 100svh;
+          display: flex;
+          flex-direction: column;
         }
       }
     </style>
@@ -59,7 +80,7 @@
     </script>
     <link rel="stylesheet" href="/index.css" />
   </head>
-  <body class="gradient-bg min-h-screen">
+  <body>
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>
