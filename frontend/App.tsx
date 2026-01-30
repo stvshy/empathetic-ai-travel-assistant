@@ -842,16 +842,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
           </div>
           <div className="min-w-0">
             {/* Tytuł: responsive */}
-            {/* <h1 className="font-bold text-gray-800 text-base sm:text-lg truncate">{t.title}</h1> */}
-
-            {/* odtąd usunąć i powyższe odkomentować*/}
             <h1 className="font-bold text-gray-800 text-base sm:text-lg truncate">{t.title}</h1>
-            
-            {/* --- DEBUGGER URZĄDZENIA (Usuń po testach) --- */}
-            <span className="text-[10px] uppercase font-bold text-gray-400 border border-gray-200 px-1 rounded">
-              {isMobile ? "TRYB: TELEFON" : "TRYB: PC"}
-            </span>
-            {/* dotąd usunąć*/}
 
             {/* Status Zmienny */}
             <p
@@ -971,10 +962,22 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
            </div>
         )} */}
 
-        {interimTranscript && (
+
+{/* UNIWERSALNY SZARY DYMEK (Styl PC, Logika hybrydowa) */}
+        {(interimTranscript || (isMobile && state.isRecording && inputText)) && (
           <div className="flex justify-end mb-4">
             <div className="max-w-[80%] rounded-2xl px-4 py-3 bg-gray-100 text-gray-500 rounded-tr-none border border-gray-200 opacity-80 italic">
-              <p className="text-sm">{interimTranscript}...</p>
+              <p className="text-sm">
+                {isMobile ? (
+                  /* Na mobile pokazujemy cały sklejony tekst w szarym dymku */
+                  <span>
+                    {inputText} {interimTranscript}
+                  </span>
+                ) : (
+                  /* Na PC pokazujemy tylko aktualnie wykrywany fragment */
+                  <span>{interimTranscript}...</span>
+                )}
+              </p>
             </div>
           </div>
         )}
