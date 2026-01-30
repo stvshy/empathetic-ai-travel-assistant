@@ -147,6 +147,7 @@ const App: React.FC = () => {
   >([]);
 
   const [pendingTtsText, setPendingTtsText] = useState<string | null>(null);
+  const [pendingPiperPlayback, setPendingPiperPlayback] = useState(false);
 
   // Ref do przechowywania aktualnych ustawień 
   const settingsRef = useRef(state.settings);
@@ -410,6 +411,9 @@ const App: React.FC = () => {
         const audioBlob = await res.blob();
         const audioUrl = URL.createObjectURL(audioBlob);
         const audio = new Audio(audioUrl);
+        // iOS: wspomaga odtwarzanie inline
+        (audio as any).playsInline = true;
+        audio.setAttribute("playsinline", "true");
         
         // Zapisz referencję do audio
         piperAudioRef.current = audio;
@@ -417,8 +421,17 @@ const App: React.FC = () => {
         audio.onended = () => {
           URL.revokeObjectURL(audioUrl);
           piperAudioRef.current = null;
+          setPendingPiperPlayback(false);
         };
-        await audio.play();
+
+        try {
+          await audio.play();
+          setPendingPiperPlayback(false);
+        } catch (playErr) {
+          // Mobile często blokuje autoplay bez user-gesture.
+          console.warn("Piper audio play blocked:", playErr);
+          setPendingPiperPlayback(true);
+        }
       } catch (err) {
         console.error("Piper TTS failed:", err);
       }
@@ -503,6 +516,29 @@ const App: React.FC = () => {
           }
         }, 400);
       }
+    }
+  };
+
+  const playPendingTts = async () => {
+    // Wywoływane tylko z kliknięcia (user-gesture)
+    if (!settingsRef.current.enableTTS) return;
+
+    if (settingsRef.current.ttsModel === "piper") {
+      const audio = piperAudioRef.current;
+      if (!audio) return;
+      try {
+        await audio.play();
+        setPendingPiperPlayback(false);
+      } catch (e) {
+        console.warn("Piper play still blocked:", e);
+        setPendingPiperPlayback(true);
+      }
+      return;
+    }
+
+    unlockWebTtsIfNeeded();
+    if (pendingTtsText) {
+      speakText(pendingTtsText);
     }
   };
   // --- ACTIONS ---
@@ -957,11 +993,14 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
             onClick={() => {
               if (state.settings.enableTTS && 'speechSynthesis' in window) window.speechSynthesis.cancel();
               
+              const nextEnable = !state.settings.enableTTS;
+              if (nextEnable) unlockWebTtsIfNeeded();
+
               setState((prev) => ({
                 ...prev,
                 settings: {
                   ...prev.settings,
-                  enableTTS: !prev.settings.enableTTS,
+                  enableTTS: nextEnable,
                 },
               }));
             }}
@@ -1093,12 +1132,13 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
         )}
 
         {/* Mobile fallback: jeśli Web TTS zablokowany, pokaż przycisk do ręcznego odtworzenia */}
-        {isMobile && state.settings.enableTTS && state.settings.ttsModel === "browser" && pendingTtsText && (
+        {isMobile && state.settings.enableTTS && (
+          ((state.settings.ttsModel === "browser" && pendingTtsText) || (state.settings.ttsModel === "piper" && pendingPiperPlayback))
+        ) && (
           <div className="mb-2 flex justify-center">
             <button
               onClick={() => {
-                unlockWebTtsIfNeeded();
-                speakText(pendingTtsText);
+                playPendingTts();
               }}
               className="text-xs font-semibold px-4 py-2 rounded-full bg-blue-600 text-white shadow hover:bg-blue-700 transition-colors"
             >
@@ -1339,6 +1379,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                       onChange={(e) => {
                         const newVal = e.target.checked;
                         if (!newVal && 'speechSynthesis' in window) window.speechSynthesis.cancel(); // FIX: Stop immediate
+                        if (newVal) unlockWebTtsIfNeeded();
                         setState((prev) => ({
                           ...prev,
                           settings: {
