@@ -383,7 +383,7 @@ const App: React.FC = () => {
       return;
     }
 
-    // Używamy przeglądarki (oryginalny kod)
+    // Używamy przeglądarki (Web Speech API)
     if ('SpeechSynthesisUtterance' in window && 'speechSynthesis' in window) {
       const utterance = new SpeechSynthesisUtterance(cleanText);
       // Używamy języka z Refa dla pewności
@@ -424,7 +424,22 @@ const App: React.FC = () => {
         utterance.pitch = 1.0;
       }
 
+      // FIX dla mobile: Resume speechSynthesis przed speak()
+      // Na iOS/Android czasem synthesis jest w stanie "paused" i trzeba go wznowić
+      if (window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
+      }
+
       window.speechSynthesis.speak(utterance);
+      
+      // FIX 2: Dodatkowe wznowienie po 100ms (iOS workaround)
+      if (isMobile) {
+        setTimeout(() => {
+          if (window.speechSynthesis.paused) {
+            window.speechSynthesis.resume();
+          }
+        }, 100);
+      }
     }
   };
   // --- ACTIONS ---
@@ -466,6 +481,19 @@ const App: React.FC = () => {
      silenceTimerRef.current = null;
   }
     if (!text.trim()) return;
+    
+    // FIX dla mobile TTS: Inicjalizuj speechSynthesis przy user interaction
+    if (isMobile && 'speechSynthesis' in window && settingsRef.current.enableTTS) {
+      try {
+        const dummyUtterance = new SpeechSynthesisUtterance('');
+        dummyUtterance.volume = 0;
+        window.speechSynthesis.speak(dummyUtterance);
+        console.log('✅ TTS odblokowane przez wysłanie wiadomości');
+      } catch (e) {
+        console.warn('⚠️ Nie udało się odblokować TTS:', e);
+      }
+    }
+    
     // Przerwij czytanie natychmiast po wysłaniu wiadomości
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
@@ -676,6 +704,20 @@ const App: React.FC = () => {
       piperAudioRef.current.pause();
       piperAudioRef.current.currentTime = 0;
       piperAudioRef.current = null;
+    }
+    
+    // FIX dla mobile TTS: Inicjalizuj speechSynthesis przy user gesture
+    // Przeglądarka mobilna wymaga "user interaction" do odblokowania TTS
+    if (isMobile && 'speechSynthesis' in window && settingsRef.current.enableTTS) {
+      try {
+        // Próba uruchomienia pustego utterance aby odblokować TTS
+        const dummyUtterance = new SpeechSynthesisUtterance('');
+        dummyUtterance.volume = 0; // Cicho
+        window.speechSynthesis.speak(dummyUtterance);
+        console.log('✅ TTS odblokowane przez user gesture');
+      } catch (e) {
+        console.warn('⚠️ Nie udało się odblokować TTS:', e);
+      }
     }
     
     // Reset flagi blokującej podwójne wiadomości
