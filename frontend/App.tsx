@@ -207,7 +207,6 @@ const App: React.FC = () => {
   // Ref do śledzenia czy greeting został już ustawiony
   const greetingInitializedRef = useRef(false);
   const previousLanguageRef = useRef(state.settings.language);
-  const startRecordingTextRef = useRef(""); // Przechowuje tekst przed rozpoczęciem nagrywania (do fixowania duplikatów mobile)
   // Ref do aktualnie odtwarzanego audio z Pipera
   const piperAudioRef = useRef<HTMLAudioElement | null>(null);
   const [isBackendConnected, setIsBackendConnected] = useState(false);
@@ -562,40 +561,41 @@ const App: React.FC = () => {
       recognition.interimResults = true;
 
       recognition.onresult = (event: any) => {
-        // --- LOGIKA DLA MOBILE (Reconstruction Strategy) ---
-        // Rozwiązuje problem duplikatów na Androidzie i pozwala na podgląd na żywo
+        // --- LOGIKA DLA MOBILE (Chunking, tak jak na PC) ---
+        // Iterujemy TYLKO od event.resultIndex do końca, aby uniknąć duplikatów
         if (isMobile) {
-            let sessionFinal = "";
-            let sessionInterim = "";
+            let finalChunk = "";
+            let interimChunk = "";
             
-            // Iterujemy zawsze od 0, budując pełny transkrypt sesji
-            for (let i = 0; i < event.results.length; ++i) {
+            // Pętla TYLKO po nowych wynikach (od resultIndex do końca)
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
                 if (event.results[i].isFinal) {
-                    sessionFinal += event.results[i][0].transcript;
+                    finalChunk += event.results[i][0].transcript;
                 } else {
-                    sessionInterim += event.results[i][0].transcript;
+                    interimChunk += event.results[i][0].transcript;
                 }
             }
             
-            // Łączymy z tekstem początkowym
-            const currentBase = startRecordingTextRef.current || "";
-            const combined = currentBase 
-               ? (sessionFinal ? `${currentBase} ${sessionFinal}` : currentBase) 
-               : sessionFinal;
+            // Jeśli są nowe FINALNE słowa, dołączamy do inputa
+            if (finalChunk) {
+                setInputText((prev) => {
+                    const updated = prev ? `${prev} ${finalChunk}` : finalChunk;
+                    return updated.replace(/\s+/g, ' ').trim();
+                });
+            }
             
-            // Usuwamy podwójne spacje i trymujemy
-            const cleaned = combined.replace(/\s+/g, ' ').trim();
-            
-            setInputText(cleaned);
-            setInterimTranscript(sessionInterim);
+            // Wyświetlamy interim transkrypt (podgląd na żywo)
+            setInterimTranscript(interimChunk);
 
             // Timer do wysyłania (resetowany przy każdym zdarzeniu mowy)
             if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
             silenceTimerRef.current = setTimeout(() => {
-                if (!isProcessingSpeechRef.current && cleaned) {
-                    isProcessingSpeechRef.current = true;
+                if (!isProcessingSpeechRef.current) {
                     setInputText(current => {
-                        handleSendMessage(current);
+                        if (current.trim()) {
+                            isProcessingSpeechRef.current = true;
+                            handleSendMessage(current);
+                        }
                         return "";
                     });
                     stopRecording();
@@ -674,9 +674,6 @@ const App: React.FC = () => {
     
     // Reset flagi blokującej podwójne wiadomości
     isProcessingSpeechRef.current = false;
-    
-    // Zapisz obecny tekst (dla logiki mobile reconstruction)
-    startRecordingTextRef.current = inputText;
 
     setState((prev) => ({ ...prev, isRecording: true, error: null }));
     if (state.settings.sttModel === "browser") {
