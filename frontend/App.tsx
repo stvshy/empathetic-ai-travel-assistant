@@ -153,19 +153,30 @@ const App: React.FC = () => {
 
   // Ładowanie dostępnych głosów TTS
   useEffect(() => {
-    const loadVoices = () => {
-      const voices = window.speechSynthesis.getVoices();
-      setAvailableVoices(voices);
-    };
-
-    loadVoices();
-
-    // Chrome ładuje głosy asynchronicznie, więc musimy nasłuchiwać zdarzenia
-    window.speechSynthesis.onvoiceschanged = loadVoices;
-
-    return () => {
-      window.speechSynthesis.onvoiceschanged = null;
-    };
+    // ZABEZPIECZENIE: Sprawdzamy czy API istnieje
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      const loadVoices = () => {
+        try {
+          const voices = window.speechSynthesis.getVoices();
+          setAvailableVoices(voices);
+        } catch (e) {
+          console.warn("Błąd ładowania głosów:", e);
+        }
+      };
+      
+      loadVoices();
+      
+      // Niektóre przeglądarki mobilne nie mają tego zdarzenia
+      if (window.speechSynthesis.onvoiceschanged !== undefined) {
+        window.speechSynthesis.onvoiceschanged = loadVoices;
+      }
+      
+      return () => {
+        if (window.speechSynthesis) {
+            window.speechSynthesis.onvoiceschanged = null;
+        }
+      };
+    }
   }, []);
   const [inputText, setInputText] = useState("");
   const [interimTranscript, setInterimTranscript] = useState("");
@@ -682,7 +693,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen w-full sm:max-w-2xl sm:mx-auto bg-white sm:shadow-2xl relative overflow-hidden">
+    <div className="flex flex-col h-screen sm:h-[100dvh] w-full sm:max-w-2xl sm:mx-auto bg-white sm:shadow-2xl relative overflow-hidden">
       {" "}
       {/* --- HEADER --- */}
       <style>{`
