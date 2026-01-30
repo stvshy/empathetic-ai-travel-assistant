@@ -561,61 +561,81 @@ const App: React.FC = () => {
       recognition.interimResults = true;
 
       recognition.onresult = (event: any) => {
-        let final = "";
-        let interim = "";
-        
+        let finalChunk = "";
+        let interimChunk = "";
+
+        // Pętla po wynikach
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           if (event.results[i].isFinal) {
-            final += event.results[i][0].transcript;
+            finalChunk += event.results[i][0].transcript;
           } else {
-            interim += event.results[i][0].transcript;
+            interimChunk += event.results[i][0].transcript;
           }
         }
 
-        if (final) {
-          // DEBUG: Sprawdź w konsoli co wykrył
-          console.log(`🎤 Final text: "${final}". Tryb Mobile?: ${isMobile}`);
-
+        // --- 1. OBSŁUGA FINALNEGO TEKSTU (Zatwierdzone słowa) ---
+        if (finalChunk) {
+          const finalTrimmed = finalChunk.trim();
+          
           if (isMobile) {
-            // --- TRYB MOBILNY (CZEKA NA CISZĘ) ---
+            // MOBILNIE: Dopisujemy do inputa i resetujemy timer wysłania
             setInputText((prev) => {
-              const newText = prev ? `${prev} ${final}` : final;
-              
-              if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-              
-              silenceTimerRef.current = setTimeout(() => {
-                if (!isProcessingSpeechRef.current) {
-                   console.log("⏳ Timer ciszy minął - wysyłam (Mobile)");
-                   isProcessingSpeechRef.current = true;
-                   handleSendMessage(newText); 
-                   stopRecording();
-                }
-              }, 2000); // 2 sekundy czekania
-              
-              return newText;
+              // Strażnik powtórzeń (Android fix)
+              if (prev.trim().endsWith(finalTrimmed)) {
+                return prev;
+              }
+              return prev ? `${prev} ${finalTrimmed}` : finalTrimmed;
             });
+
+            // Resetujemy timer ciszy (bo użytkownik właśnie skończył zdanie, może powie kolejne)
+            if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+            
+            silenceTimerRef.current = setTimeout(() => {
+              // Wyślij dopiero po 2 sek ciszy od ostatniego FINALNEGO zdania
+              if (!isProcessingSpeechRef.current) {
+                isProcessingSpeechRef.current = true;
+                // Pobieramy aktualny stan inputa w hackowy sposób lub wysyłamy to co mamy
+                // W React setTimeout ma closure starego stanu, więc lepiej wywołać click na przycisku
+                // lub użyć refa. Tutaj użyjemy triku z setInputText żeby dostać najnowszy stan
+                setInputText(currentText => {
+                    handleSendMessage(currentText); 
+                    return ""; // Czyścimy input po wysłaniu
+                });
+                stopRecording();
+              }
+            }, 2000);
+
           } else {
-            // --- TRYB KOMPUTEROWY (NATYCHMIAST) ---
-            console.log("🚀 Tryb PC - wysyłam natychmiast");
+            // KOMPUTER: Wysyłamy od razu
             if (!isProcessingSpeechRef.current) {
               isProcessingSpeechRef.current = true;
-              handleSendMessage(final);
+              handleSendMessage(finalTrimmed);
               stopRecording();
             }
           }
+        }
+
+        // --- 2. OBSŁUGA TYMCZASOWEGO TEKSTU (Podgląd na żywo) ---
+        if (interimChunk) {
+          // Na mobile też chcemy widzieć co mówimy, ale nie w głównym inpucie (bo to psuje logikę),
+          // tylko w tym szarym polu pod spodem.
+          // Jeśli na mobile mówisz dalej (interim), resetujemy timer, żeby nie ucięło w połowie słowa.
+          if (isMobile && silenceTimerRef.current) {
+             clearTimeout(silenceTimerRef.current);
+          }
+          setInterimTranscript(interimChunk);
         } else {
-          setInterimTranscript(interim);
-          // Reset timera jeśli słyszy "szum" (interim)
-           if (isMobile && silenceTimerRef.current) {
-              clearTimeout(silenceTimerRef.current);
-           }
+          setInterimTranscript("");
         }
       };
 
-      recognition.onerror = () => stopRecording();
+      recognition.onerror = (event: any) => {
+          // Ignoruj błąd 'no-speech' na mobile, bo często się zdarza przy ciszy
+          if (event.error !== 'no-speech') stopRecording();
+      };
       
       recognition.onend = () => {
-        // Na PC kończymy od razu. Na Mobile ignorujemy onend, bo timer zarządza wysyłką.
+        // Na PC wyłączamy od razu. Na mobile zostawiamy (timer decyduje).
         if (state.isRecording && state.settings.sttModel === "browser" && !isMobile) {
            setState((prev) => ({ ...prev, isRecording: false }));
         }
