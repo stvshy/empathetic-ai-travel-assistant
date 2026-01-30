@@ -842,11 +842,11 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
           </div>
           <div className="min-w-0">
             {/* Tytuł: responsive */}
-            <h1 className="font-bold text-gray-800 text-base sm:text-lg truncate">{t.title}</h1>
+            <h1 className="font-bold text-gray-800 text-sm sm:text-lg truncate">{t.title}</h1>
 
             {/* Status Zmienny */}
             <p
-              className={`text-xs font-medium flex items-center gap-1 ${
+              className={`text-[10px] sm:text-xs font-medium flex items-center gap-1 ${
                 isBackendConnected ? "text-green-500" : "text-red-500"
               } truncate`}
             >
