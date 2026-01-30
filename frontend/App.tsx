@@ -218,6 +218,8 @@ const App: React.FC = () => {
   const mobileFinalRef = useRef("");
   const mobileInterimRef = useRef("");
   const [isBackendConnected, setIsBackendConnected] = useState(false);
+  const mobileTtsKickIntervalRef = useRef<number | null>(null);
+  const lastAutoRetryRef = useRef(0);
 
   // Funkcja sprawdzająca "zdrowie" serwera
   useEffect(() => {
@@ -341,6 +343,35 @@ const App: React.FC = () => {
   };
 
   // --- TTS ---
+  const startMobileTtsKick = () => {
+    if (!isMobile) return;
+    if (typeof window === "undefined") return;
+    if (!("speechSynthesis" in window)) return;
+
+    if (mobileTtsKickIntervalRef.current !== null) {
+      window.clearInterval(mobileTtsKickIntervalRef.current);
+      mobileTtsKickIntervalRef.current = null;
+    }
+
+    // Chromium/Opera mobile bug: speech can get "stuck" unless periodically resumed.
+    mobileTtsKickIntervalRef.current = window.setInterval(() => {
+      try {
+        // resume() is idempotent; calling it repeatedly is safe.
+        window.speechSynthesis.resume();
+      } catch {
+        // ignore
+      }
+    }, 250);
+  };
+
+  const stopMobileTtsKick = () => {
+    if (typeof window === "undefined") return;
+    if (mobileTtsKickIntervalRef.current !== null) {
+      window.clearInterval(mobileTtsKickIntervalRef.current);
+      mobileTtsKickIntervalRef.current = null;
+    }
+  };
+
   const unlockWebTtsIfNeeded = () => {
     if (!isMobile) return;
     if (typeof window === "undefined") return;
@@ -485,6 +516,11 @@ const App: React.FC = () => {
         window.speechSynthesis.resume();
       }
 
+      if (isMobile) {
+        // Start kick *before* speak to avoid long delays.
+        startMobileTtsKick();
+      }
+
       let didStart = false;
       utterance.onstart = () => {
         didStart = true;
@@ -492,10 +528,12 @@ const App: React.FC = () => {
       };
       utterance.onend = () => {
         setPendingTtsText(null);
+        stopMobileTtsKick();
       };
       utterance.onerror = (e) => {
         console.warn("Web TTS error:", e);
         if (isMobile) setPendingTtsText(cleanText);
+        stopMobileTtsKick();
       };
 
       window.speechSynthesis.speak(utterance);
@@ -515,6 +553,11 @@ const App: React.FC = () => {
             setPendingTtsText(cleanText);
           }
         }, 400);
+
+        // Safety: stop kick after a while to avoid leaking intervals
+        setTimeout(() => {
+          stopMobileTtsKick();
+        }, 45000);
       }
     }
   };
@@ -541,6 +584,56 @@ const App: React.FC = () => {
       speakText(pendingTtsText);
     }
   };
+
+  // Mobile: gdy telefon wraca z blokady / zakładka wraca na wierzch,
+  // spróbuj natychmiast wznowić TTS / audio (często dopiero wtedy zaczyna grać).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const tryResume = () => {
+      const now = Date.now();
+      if (now - lastAutoRetryRef.current < 3000) return;
+      lastAutoRetryRef.current = now;
+
+      try {
+        if ('speechSynthesis' in window && window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
+      } catch {
+        // ignore
+      }
+
+      if (!settingsRef.current.enableTTS) return;
+
+      if (settingsRef.current.ttsModel === 'piper') {
+        const audio = piperAudioRef.current;
+        if (audio && pendingPiperPlayback) {
+          audio.play().then(() => setPendingPiperPlayback(false)).catch(() => setPendingPiperPlayback(true));
+        }
+        return;
+      }
+
+      if (settingsRef.current.ttsModel === 'browser' && pendingTtsText) {
+        speakText(pendingTtsText);
+      }
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        tryResume();
+      }
+    };
+
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('focus', tryResume);
+    window.addEventListener('pageshow', tryResume);
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('focus', tryResume);
+      window.removeEventListener('pageshow', tryResume);
+    };
+  }, [pendingTtsText, pendingPiperPlayback]);
   // --- ACTIONS ---
   const handleNewChat = () => {
     // Nowy czat przerywa ewentualne mówienie
