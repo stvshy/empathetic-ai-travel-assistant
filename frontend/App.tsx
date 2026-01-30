@@ -2,8 +2,16 @@ import React, { useState, useEffect, useRef } from "react";
 import { Message, AppState, Settings } from "./types";
 import ChatBubble from "./components/ChatBubble";
 
-const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
+// --- LEPSZE WYKRYWANIE URZĄDZENIA ---
+const getIsMobile = () => {
+  if (typeof window === "undefined") return false;
+  // Sprawdza User Agent ORAZ czy urządzenie obsługuje dotyk
+  return (
+    /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
+    (navigator.maxTouchPoints && navigator.maxTouchPoints > 0)
+  );
+};
+const isMobile = getIsMobile();
 // --- SŁOWNIK TŁUMACZEŃ ---
 const TRANSLATIONS = {
   pl: {
@@ -540,7 +548,7 @@ const App: React.FC = () => {
     }
   };
 
-  // --- WEB SPEECH API ---
+ // --- WEB SPEECH API ---
   useEffect(() => {
     const { webkitSpeechRecognition, SpeechRecognition } =
       window as unknown as IWindow;
@@ -548,7 +556,6 @@ const App: React.FC = () => {
 
     if (Recognition) {
       const recognition = new Recognition();
-      // Ustawiamy język
       recognition.lang = state.settings.language === "pl" ? "pl-PL" : "en-US";
       recognition.continuous = true;
       recognition.interimResults = true;
@@ -566,28 +573,30 @@ const App: React.FC = () => {
         }
 
         if (final) {
+          // DEBUG: Sprawdź w konsoli co wykrył
+          console.log(`🎤 Final text: "${final}". Tryb Mobile?: ${isMobile}`);
+
           if (isMobile) {
-            // --- LOGIKA NA TELEFON (Efekt pisania na żywo + Auto-wysyłanie) ---
+            // --- TRYB MOBILNY (CZEKA NA CISZĘ) ---
             setInputText((prev) => {
-              // 1. Dopisujemy słowo do pola tekstowego natychmiast (widzisz je od razu)
               const newText = prev ? `${prev} ${final}` : final;
               
-              // 2. Resetujemy licznik ciszy (bo użytkownik wciąż mówi)
               if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
               
-              // 3. Ustawiamy nowy licznik: Jeśli będzie cisza przez 2 sekundy -> WYŚLIJ
               silenceTimerRef.current = setTimeout(() => {
                 if (!isProcessingSpeechRef.current) {
+                   console.log("⏳ Timer ciszy minął - wysyłam (Mobile)");
                    isProcessingSpeechRef.current = true;
-                   handleSendMessage(newText); // Wysyła całość
+                   handleSendMessage(newText); 
                    stopRecording();
                 }
-              }, 2000); // <--- TU ZMIENIASZ CZAS OCZEKIWANIA (2000ms = 2 sekundy)
+              }, 2000); // 2 sekundy czekania
               
               return newText;
             });
           } else {
-            // --- LOGIKA NA KOMPUTER (Bez zmian - działa błyskawicznie) ---
+            // --- TRYB KOMPUTEROWY (NATYCHMIAST) ---
+            console.log("🚀 Tryb PC - wysyłam natychmiast");
             if (!isProcessingSpeechRef.current) {
               isProcessingSpeechRef.current = true;
               handleSendMessage(final);
@@ -595,10 +604,8 @@ const App: React.FC = () => {
             }
           }
         } else {
-          // To pokazuje szary tekst (ten, którego telefon jeszcze nie jest pewien)
           setInterimTranscript(interim);
-          
-          // Jeśli telefon ciągle słucha (interim), też resetujemy licznik wysłania
+          // Reset timera jeśli słyszy "szum" (interim)
            if (isMobile && silenceTimerRef.current) {
               clearTimeout(silenceTimerRef.current);
            }
@@ -608,13 +615,9 @@ const App: React.FC = () => {
       recognition.onerror = () => stopRecording();
       
       recognition.onend = () => {
-        if (state.isRecording && state.settings.sttModel === "browser") {
-           // Na komputerze kończymy nagrywanie.
-           // Na telefonie ignorujemy 'onend', bo onend strzela tam za często.
-           // Polegamy na naszym timerze (setTimeout) powyżej.
-           if (!isMobile) {
-              setState((prev) => ({ ...prev, isRecording: false }));
-           } 
+        // Na PC kończymy od razu. Na Mobile ignorujemy onend, bo timer zarządza wysyłką.
+        if (state.isRecording && state.settings.sttModel === "browser" && !isMobile) {
+           setState((prev) => ({ ...prev, isRecording: false }));
         }
       };
 
@@ -786,7 +789,16 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
           </div>
           <div className="min-w-0">
             {/* Tytuł: responsive */}
+            {/* <h1 className="font-bold text-gray-800 text-base sm:text-lg truncate">{t.title}</h1> */}
+
+            {/* odtąd usunąć i powyższe odkomentować*/}
             <h1 className="font-bold text-gray-800 text-base sm:text-lg truncate">{t.title}</h1>
+            
+            {/* --- DEBUGGER URZĄDZENIA (Usuń po testach) --- */}
+            <span className="text-[10px] uppercase font-bold text-gray-400 border border-gray-200 px-1 rounded">
+              {isMobile ? "TRYB: TELEFON" : "TRYB: PC"}
+            </span>
+            {/* dotąd usunąć*/}
 
             {/* Status Zmienny */}
             <p
