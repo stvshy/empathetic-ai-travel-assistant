@@ -209,8 +209,10 @@ const App: React.FC = () => {
   const previousLanguageRef = useRef(state.settings.language);
   // Ref do aktualnie odtwarzanego audio z Pipera
   const piperAudioRef = useRef<HTMLAudioElement | null>(null);
-  // Ref do śledzenia ostatnio przetworczonego indeksu na mobile (aby uniknąć duplikatów)
-  const lastProcessedIndexRef = useRef(-1);
+  // Mobile WebSpeech: przechowuj bazowy tekst + najnowsze transkrypty (Android często zwraca kumulatywnie)
+  const mobileBaseTextRef = useRef("");
+  const mobileFinalRef = useRef("");
+  const mobileInterimRef = useRef("");
   const [isBackendConnected, setIsBackendConnected] = useState(false);
 
   // Funkcja sprawdzająca "zdrowie" serwera
@@ -563,47 +565,60 @@ const App: React.FC = () => {
       recognition.interimResults = true;
 
       recognition.onresult = (event: any) => {
-        // --- LOGIKA DLA MOBILE (Chunking z tracking indeksu) ---
-        // Android zwraca wszystkie wyniki, więc trackujemy ostatni przetworzony indeks
+        const normalize = (s: string) => s.replace(/\s+/g, " ").trim();
+        const mergeFinalAndInterim = (finalText: string, interimText: string) => {
+          const f = normalize(finalText);
+          const i = normalize(interimText);
+          if (!i) return f;
+          if (!f) return i;
+          if (f.endsWith(i)) return f;
+          if (i.startsWith(f)) return i;
+          return `${f} ${i}`;
+        };
+
+        // --- LOGIKA DLA MOBILE (kumulatywny transcript) ---
+        // Na Androidzie `event.results` często zawiera "całe zdanie do tej pory" przy każdym update.
+        // Dlatego NIE doklejamy chunków, tylko bierzemy najnowszy FINAL i pokazujemy go jako stan.
         if (isMobile) {
-            let finalChunk = "";
-            let interimChunk = "";
-            
-            // Iterujemy od ostatnio przetworczonego indeksu + 1 do końca
-            const startIdx = lastProcessedIndexRef.current + 1;
-            for (let i = startIdx; i < event.results.length; ++i) {
-                if (event.results[i].isFinal) {
-                    finalChunk += event.results[i][0].transcript;
-                    lastProcessedIndexRef.current = i; // Uaktualnij ostatni przetworzony indeks
-                } else {
-                    interimChunk += event.results[i][0].transcript;
-                }
+            let latestFinal = "";
+            for (let i = 0; i < event.results.length; ++i) {
+              if (event.results[i].isFinal) {
+                latestFinal = event.results[i][0].transcript;
+              }
             }
-            
-            // Jeśli są nowe FINALNE słowa, dołączamy do inputa
-            if (finalChunk) {
-                setInputText((prev) => {
-                    const updated = prev ? `${prev} ${finalChunk}` : finalChunk;
-                    return updated.replace(/\s+/g, ' ').trim();
-                });
+
+            let latestInterim = "";
+            for (let i = event.results.length - 1; i >= 0; --i) {
+              if (!event.results[i].isFinal) {
+                latestInterim = event.results[i][0].transcript;
+                break;
+              }
             }
-            
-            // Wyświetlamy interim transkrypt (podgląd na żywo)
-            setInterimTranscript(interimChunk);
+
+            const base = mobileBaseTextRef.current || "";
+            const finalText = normalize(base ? `${base} ${latestFinal}` : latestFinal);
+            const interimText = normalize(latestInterim);
+
+            mobileFinalRef.current = finalText;
+            mobileInterimRef.current = interimText;
+
+            setInputText(finalText);
+            setInterimTranscript(interimText);
 
             // Timer do wysyłania (resetowany przy każdym zdarzeniu mowy)
             if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
             silenceTimerRef.current = setTimeout(() => {
-                if (!isProcessingSpeechRef.current) {
-                    setInputText(current => {
-                        if (current.trim()) {
-                            isProcessingSpeechRef.current = true;
-                            handleSendMessage(current);
-                        }
-                        return "";
-                    });
-                    stopRecording();
+              if (!isProcessingSpeechRef.current) {
+                const toSend = mergeFinalAndInterim(
+                  mobileFinalRef.current,
+                  mobileInterimRef.current
+                );
+                if (toSend) {
+                  isProcessingSpeechRef.current = true;
+                  handleSendMessage(toSend);
                 }
+                stopRecording();
+              }
             }, 2000);
             
             return; // Kończymy obsługę dla mobile
@@ -678,8 +693,10 @@ const App: React.FC = () => {
     
     // Reset flagi blokującej podwójne wiadomości
     isProcessingSpeechRef.current = false;
-    // Reset indeksu przetwarzania dla mobile
-    lastProcessedIndexRef.current = -1;
+    // Reset transkryptów dla mobile
+    mobileBaseTextRef.current = inputText;
+    mobileFinalRef.current = "";
+    mobileInterimRef.current = "";
 
     setState((prev) => ({ ...prev, isRecording: true, error: null }));
     if (state.settings.sttModel === "browser") {
@@ -716,11 +733,26 @@ const App: React.FC = () => {
      silenceTimerRef.current = null;
   }
   // Jeśli jest jakiś tekst w polu na mobile i klikniesz stop -> wyślij go
-  if (isMobile && inputText.trim() && state.settings.sttModel === "browser") {
-      if (!isProcessingSpeechRef.current) {
-          isProcessingSpeechRef.current = true;
-          handleSendMessage(inputText);
-      }
+  if (isMobile && state.settings.sttModel === "browser") {
+    const normalize = (s: string) => s.replace(/\s+/g, " ").trim();
+    const mergeFinalAndInterim = (finalText: string, interimText: string) => {
+      const f = normalize(finalText);
+      const i = normalize(interimText);
+      if (!i) return f;
+      if (!f) return i;
+      if (f.endsWith(i)) return f;
+      if (i.startsWith(f)) return i;
+      return `${f} ${i}`;
+    };
+
+    const finalText = mobileFinalRef.current || inputText;
+    const interimText = mobileInterimRef.current || interimTranscript;
+    const toSend = mergeFinalAndInterim(finalText, interimText);
+
+    if (toSend && !isProcessingSpeechRef.current) {
+      isProcessingSpeechRef.current = true;
+      handleSendMessage(toSend);
+    }
   }
     setState((prev) => ({ ...prev, isRecording: false }));
     setInterimTranscript("");
