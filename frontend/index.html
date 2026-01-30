@@ -22,29 +22,33 @@
       rel="stylesheet"
     />
     <style>
+      /* Reset podstawowy */
       * {
         margin: 0;
         padding: 0;
         box-sizing: border-box;
       }
-      /* Ustawiamy sztywną wysokość dla kontenerów nadrzędnych */
+
+      /* KLUCZOWE: Wymuszamy, aby HTML, BODY i ROOT zajmowały zawsze 100% dostępnej przestrzeni */
       html, body, #root {
         width: 100%;
         height: 100%;
-        /* Zapobiegamy przewijaniu tła (strony), scrollować ma się tylko czat */
-        overflow: hidden; 
-        font-family: "Inter", sans-serif;
+        margin: 0;
+        padding: 0;
+        overflow: hidden; /* Blokujemy scrollowanie całej strony, scroll ma być tylko w czacie */
       }
-      
+
       body {
         background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-        position: relative;
+        font-family: "Inter", sans-serif;
+        /* Fix dla iOS Safari, żeby nie odbijało przy scrollowaniu (rubber-banding) */
+        position: fixed; 
+        inset: 0;
       }
-      
+
       .emoji {
         font-family: "Noto Color Emoji", sans-serif;
       }
-
     </style>
     <script type="importmap">
       {

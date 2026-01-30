@@ -271,7 +271,9 @@ const App: React.FC = () => {
     // Jeśli użytkownik wyłączył TTS (z true na false)
     if (!state.settings.enableTTS) {
       console.log("TTS wyłączony - przerywam mówienie.");
-      window.speechSynthesis.cancel(); // <- To jest ten hamulec ręczny
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel(); // <- To jest ten hamulec ręczny
+      }
       // Przerwij też Pipera
       if (piperAudioRef.current) {
         piperAudioRef.current.pause();
@@ -283,7 +285,9 @@ const App: React.FC = () => {
 
   // Zmiana języka powinna natychmiast zatrzymać aktualne czytanie
   useEffect(() => {
-    window.speechSynthesis.cancel();
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
     // Przerwij też Pipera
     if (piperAudioRef.current) {
       piperAudioRef.current.pause();
@@ -319,7 +323,9 @@ const App: React.FC = () => {
     // Sprawdzamy ustawienia z Refa, a nie ze stanu (który może być nieaktualny w closure)
     if (!settingsRef.current.enableTTS) return;
 
-    window.speechSynthesis.cancel();
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
     // Zatrzymaj poprzednie audio z Pipera jeśli jest
     if (piperAudioRef.current) {
       piperAudioRef.current.pause();
@@ -362,51 +368,55 @@ const App: React.FC = () => {
     }
 
     // Używamy przeglądarki (oryginalny kod)
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-    // Używamy języka z Refa dla pewności
-    const isPolish = settingsRef.current.language === "pl";
-    const targetLang = isPolish ? "pl-PL" : "en-US";
+    if ('SpeechSynthesisUtterance' in window && 'speechSynthesis' in window) {
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      // Używamy języka z Refa dla pewności
+      const isPolish = settingsRef.current.language === "pl";
+      const targetLang = isPolish ? "pl-PL" : "en-US";
 
-    utterance.lang = targetLang;
+      utterance.lang = targetLang;
 
-    if (availableVoices.length > 0) {
-      // KROK 1: Filtrujemy głosy pasujące do języka
-      const langVoices = availableVoices.filter((v) =>
-        v.lang.includes(isPolish ? "pl" : "en")
-      );
+      if (availableVoices.length > 0) {
+        // KROK 1: Filtrujemy głosy pasujące do języka
+        const langVoices = availableVoices.filter((v) =>
+          v.lang.includes(isPolish ? "pl" : "en")
+        );
 
-      // KROK 2: Szukamy "najlepszego" głosu (Natural > Google > Systemowy)
-      let selectedVoice = langVoices.find(
-        (v) => v.name.includes("Natural") || v.name.includes("Online") // Edge Neural (Najlepsze)
-      );
+        // KROK 2: Szukamy "najlepszego" głosu (Natural > Google > Systemowy)
+        let selectedVoice = langVoices.find(
+          (v) => v.name.includes("Natural") || v.name.includes("Online") // Edge Neural (Najlepsze)
+        );
 
-      if (!selectedVoice) {
-        selectedVoice = langVoices.find((v) => v.name.includes("Google")); // Chrome (Średnie/Dobre)
+        if (!selectedVoice) {
+          selectedVoice = langVoices.find((v) => v.name.includes("Google")); // Chrome (Średnie/Dobre)
+        }
+
+        if (!selectedVoice) {
+          selectedVoice = langVoices[0]; // Pierwszy z brzegu (Systemowy - słaby)
+        }
+
+        // Przypisanie
+        if (selectedVoice) {
+          utterance.voice = selectedVoice;
+          console.log(`Wybrano głos: ${selectedVoice.name}`);
+        }
       }
 
-      if (!selectedVoice) {
-        selectedVoice = langVoices[0]; // Pierwszy z brzegu (Systemowy - słaby)
+      // Opcjonalnie: Lekkie zwolnienie tempa dla polskiego, żeby brzmiał naturalniej
+      if (isPolish) {
+        utterance.rate = 0.95;
+        utterance.pitch = 1.0;
       }
 
-      // Przypisanie
-      if (selectedVoice) {
-        utterance.voice = selectedVoice;
-        console.log(`Wybrano głos: ${selectedVoice.name}`);
-      }
+      window.speechSynthesis.speak(utterance);
     }
-
-    // Opcjonalnie: Lekkie zwolnienie tempa dla polskiego, żeby brzmiał naturalniej
-    if (isPolish) {
-      utterance.rate = 0.95;
-      utterance.pitch = 1.0;
-    }
-
-    window.speechSynthesis.speak(utterance);
   };
   // --- ACTIONS ---
   const handleNewChat = () => {
     // Nowy czat przerywa ewentualne mówienie
-    window.speechSynthesis.cancel();
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
     // Przerwij też Pipera
     if (piperAudioRef.current) {
       piperAudioRef.current.pause();
@@ -437,7 +447,9 @@ const App: React.FC = () => {
   const handleSendMessage = async (text: string) => {
     if (!text.trim()) return;
     // Przerwij czytanie natychmiast po wysłaniu wiadomości
-    window.speechSynthesis.cancel();
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
     // Przerwij też Pipera
     if (piperAudioRef.current) {
       piperAudioRef.current.pause();
@@ -575,7 +587,9 @@ const App: React.FC = () => {
   // --- RECORDING ---
    const startRecording = async () => {
     // Przerwij czytanie, gdy użytkownik zaczyna mówić
-    window.speechSynthesis.cancel();
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
     // Przerwij też Pipera
     if (piperAudioRef.current) {
       piperAudioRef.current.pause();
@@ -636,7 +650,9 @@ const App: React.FC = () => {
     console.log("Historia:", history);
     
     setState((prev) => ({ ...prev, isProcessing: true }));
-    window.speechSynthesis.cancel();
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
 
     const formData = new FormData();
     formData.append("audio", blob);
@@ -693,7 +709,7 @@ const App: React.FC = () => {
   };
 
   return (
-<div className="flex flex-col h-[100dvh] w-full sm:max-w-2xl sm:mx-auto bg-white sm:shadow-2xl relative overflow-hidden">      {" "}
+<div className="flex flex-col h-screen h-[100dvh] w-full sm:max-w-2xl sm:mx-auto bg-white sm:shadow-2xl relative overflow-hidden">      {" "}
       {/* --- HEADER --- */}
       <style>{`
         .custom-scrollbar::-webkit-scrollbar {
@@ -738,7 +754,7 @@ const App: React.FC = () => {
           {/* Quick Toggles (Visible outside settings) */}
           <button
             onClick={() => {
-              if (state.settings.enableTTS) window.speechSynthesis.cancel();
+              if (state.settings.enableTTS && 'speechSynthesis' in window) window.speechSynthesis.cancel();
               
               setState((prev) => ({
                 ...prev,
@@ -1087,7 +1103,7 @@ const App: React.FC = () => {
                       checked={state.settings.enableTTS}
                       onChange={(e) => {
                         const newVal = e.target.checked;
-                        if (!newVal) window.speechSynthesis.cancel(); // FIX: Stop immediate
+                        if (!newVal && 'speechSynthesis' in window) window.speechSynthesis.cancel(); // FIX: Stop immediate
                         setState((prev) => ({
                           ...prev,
                           settings: {
