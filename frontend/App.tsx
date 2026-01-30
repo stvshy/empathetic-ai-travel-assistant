@@ -5,11 +5,9 @@ import ChatBubble from "./components/ChatBubble";
 // --- LEPSZE WYKRYWANIE URZĄDZENIA ---
 const getIsMobile = () => {
   if (typeof window === "undefined") return false;
-  // Sprawdza User Agent ORAZ czy urządzenie obsługuje dotyk
-  return (
-    /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
-    (navigator.maxTouchPoints && navigator.maxTouchPoints > 0)
-  );
+  const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
+  // Sprawdzamy konkretnie systemy mobilne, ignorując laptopy z dotykiem
+  return /android|ipad|iphone|ipod/i.test(userAgent);
 };
 const isMobile = getIsMobile();
 // --- SŁOWNIK TŁUMACZEŃ ---
@@ -565,21 +563,19 @@ const App: React.FC = () => {
       recognition.interimResults = true;
 
       recognition.onresult = (event: any) => {
-        const normalize = (s: string) => s.replace(/\s+/g, " ").trim();
-        const mergeFinalAndInterim = (finalText: string, interimText: string) => {
-          const f = normalize(finalText);
-          const i = normalize(interimText);
-          if (!i) return f;
-          if (!f) return i;
-          if (f.endsWith(i)) return f;
-          if (i.startsWith(f)) return i;
-          return `${f} ${i}`;
-        };
-
-        // --- LOGIKA DLA MOBILE (kumulatywny transcript) ---
-        // Na Androidzie `event.results` często zawiera "całe zdanie do tej pory" przy każdym update.
-        // Dlatego NIE doklejamy chunków, tylko bierzemy najnowszy FINAL i pokazujemy go jako stan.
+        // --- LOGIKA DLA TELEFONU (NOWA - naprawia powielanie) ---
         if (isMobile) {
+            const normalize = (s: string) => s.replace(/\s+/g, " ").trim();
+            const mergeFinalAndInterim = (finalText: string, interimText: string) => {
+              const f = normalize(finalText);
+              const i = normalize(interimText);
+              if (!i) return f;
+              if (!f) return i;
+              if (f.endsWith(i)) return f;
+              if (i.startsWith(f)) return i;
+              return `${f} ${i}`;
+            };
+
             let latestFinal = "";
             for (let i = 0; i < event.results.length; ++i) {
               if (event.results[i].isFinal) {
@@ -605,7 +601,7 @@ const App: React.FC = () => {
             setInputText(finalText);
             setInterimTranscript(interimText);
 
-            // Timer do wysyłania (resetowany przy każdym zdarzeniu mowy)
+            // Timer do wysyłania na mobile
             if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
             silenceTimerRef.current = setTimeout(() => {
               if (!isProcessingSpeechRef.current) {
@@ -621,38 +617,29 @@ const App: React.FC = () => {
               }
             }, 2000);
             
-            return; // Kończymy obsługę dla mobile
-        }
-
-        // --- Standardowa logika dla PC (Chunking) ---
-        let finalChunk = "";
-        let interimChunk = "";
-
-        // Pętla po wynikach
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            finalChunk += event.results[i][0].transcript;
-          } else {
-            interimChunk += event.results[i][0].transcript;
-          }
-        }
-
-        // --- 1. OBSŁUGA FINALNEGO TEKSTU (Komputer) ---
-        if (finalChunk) {
-          const finalTrimmed = finalChunk.trim();
-          // Na PC wysyłamy od razu po wykryciu końca zdania
-          if (!isProcessingSpeechRef.current) {
-             isProcessingSpeechRef.current = true;
-             handleSendMessage(finalTrimmed);
-             stopRecording();
-          }
-        }
-
-        // --- 2. OBSŁUGA TYMCZASOWEGO TEKSTU ---
-        if (interimChunk) {
-          setInterimTranscript(interimChunk);
         } else {
-          setInterimTranscript("");
+            // --- LOGIKA DLA KOMPUTERA (STARA - szybka reakcja) ---
+            let finalChunk = "";
+            let interimChunk = "";
+
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+              if (event.results[i].isFinal) {
+                finalChunk += event.results[i][0].transcript;
+              } else {
+                interimChunk += event.results[i][0].transcript;
+              }
+            }
+
+            if (finalChunk) {
+              const finalTrimmed = finalChunk.trim();
+              if (!isProcessingSpeechRef.current) {
+                 isProcessingSpeechRef.current = true;
+                 handleSendMessage(finalTrimmed);
+                 stopRecording();
+              }
+            } else {
+              setInterimTranscript(interimChunk);
+            }
         }
       };
 
@@ -969,7 +956,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
           <ChatBubble key={msg.id} message={msg} />
         ))}
 
-        {state.isRecording && state.settings.sttModel === "browser" && isMobile && (
+        {/* {state.isRecording && state.settings.sttModel === "browser" && isMobile && (
            <div className="flex justify-center mb-2 animate-pulse">
               <div className="text-sm font-medium text-gray-700 bg-white/95 px-4 py-3 rounded-2xl shadow-md border border-blue-200 max-w-[90%] text-center">
                  {inputText || interimTranscript ? (
@@ -982,9 +969,9 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                  )}
               </div>
            </div>
-        )}
+        )} */}
 
-        {interimTranscript && !isMobile && (
+        {interimTranscript && (
           <div className="flex justify-end mb-4">
             <div className="max-w-[80%] rounded-2xl px-4 py-3 bg-gray-100 text-gray-500 rounded-tr-none border border-gray-200 opacity-80 italic">
               <p className="text-sm">{interimTranscript}...</p>
