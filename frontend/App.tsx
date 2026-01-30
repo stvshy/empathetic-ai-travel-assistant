@@ -209,6 +209,8 @@ const App: React.FC = () => {
   const previousLanguageRef = useRef(state.settings.language);
   // Ref do aktualnie odtwarzanego audio z Pipera
   const piperAudioRef = useRef<HTMLAudioElement | null>(null);
+  // Ref do śledzenia ostatnio przetworczonego indeksu na mobile (aby uniknąć duplikatów)
+  const lastProcessedIndexRef = useRef(-1);
   const [isBackendConnected, setIsBackendConnected] = useState(false);
 
   // Funkcja sprawdzająca "zdrowie" serwera
@@ -561,16 +563,18 @@ const App: React.FC = () => {
       recognition.interimResults = true;
 
       recognition.onresult = (event: any) => {
-        // --- LOGIKA DLA MOBILE (Chunking, tak jak na PC) ---
-        // Iterujemy TYLKO od event.resultIndex do końca, aby uniknąć duplikatów
+        // --- LOGIKA DLA MOBILE (Chunking z tracking indeksu) ---
+        // Android zwraca wszystkie wyniki, więc trackujemy ostatni przetworzony indeks
         if (isMobile) {
             let finalChunk = "";
             let interimChunk = "";
             
-            // Pętla TYLKO po nowych wynikach (od resultIndex do końca)
-            for (let i = event.resultIndex; i < event.results.length; ++i) {
+            // Iterujemy od ostatnio przetworczonego indeksu + 1 do końca
+            const startIdx = lastProcessedIndexRef.current + 1;
+            for (let i = startIdx; i < event.results.length; ++i) {
                 if (event.results[i].isFinal) {
                     finalChunk += event.results[i][0].transcript;
+                    lastProcessedIndexRef.current = i; // Uaktualnij ostatni przetworzony indeks
                 } else {
                     interimChunk += event.results[i][0].transcript;
                 }
@@ -674,6 +678,8 @@ const App: React.FC = () => {
     
     // Reset flagi blokującej podwójne wiadomości
     isProcessingSpeechRef.current = false;
+    // Reset indeksu przetwarzania dla mobile
+    lastProcessedIndexRef.current = -1;
 
     setState((prev) => ({ ...prev, isRecording: true, error: null }));
     if (state.settings.sttModel === "browser") {
