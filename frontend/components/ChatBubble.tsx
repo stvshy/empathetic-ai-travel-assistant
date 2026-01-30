@@ -1,5 +1,6 @@
 import React from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Message } from "../types";
 import { Table, TableHead, TableBody, TableRow, TableCell } from "./MarkdownTable";
 
@@ -24,6 +25,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({ message }) => {
         {/* ZMIANA: Zamiast <p> używamy <ReactMarkdown> z prostym stylowaniem */}
         <div className="text-xs sm:text-sm leading-relaxed markdown-body">
           <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
             components={{
               // Stylowanie list (Tailwind domyślnie usuwa kropki, więc musimy je dodać)
               ul: ({ node, ...props }) => (
@@ -51,8 +53,8 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({ message }) => {
                 <TableBody {...props} />
               ),
               tr: ({ node, ...props }) => {
-                // Sprawdź czy jest to header (tr w thead)
-                const isHeader = node?.parent?.type === 'tableHead';
+                // Sprawdź czy jest to header (tr w thead) - poprawiona logika
+                const isHeader = (node as any)?.position?.start?.line === 1 || false;
                 return <TableRow isHeader={isHeader} {...props} />;
               },
               th: ({ node, ...props }) => (
