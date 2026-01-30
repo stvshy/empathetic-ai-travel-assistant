@@ -207,8 +207,7 @@ const App: React.FC = () => {
   // Ref do śledzenia czy greeting został już ustawiony
   const greetingInitializedRef = useRef(false);
   const previousLanguageRef = useRef(state.settings.language);
-  // Ref do śledzenia tekstu przed rozpoczęciem nagrywania (fix dla duplikatów)
-  const textBeforeRecordingRef = useRef("");
+  const startRecordingTextRef = useRef(""); // Przechowuje tekst przed rozpoczęciem nagrywania (do fixowania duplikatów mobile)
   // Ref do aktualnie odtwarzanego audio z Pipera
   const piperAudioRef = useRef<HTMLAudioElement | null>(null);
   const [isBackendConnected, setIsBackendConnected] = useState(false);
@@ -563,64 +562,78 @@ const App: React.FC = () => {
       recognition.interimResults = true;
 
       recognition.onresult = (event: any) => {
-        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+        // --- LOGIKA DLA MOBILE (Reconstruction Strategy) ---
+        // Rozwiązuje problem duplikatów na Androidzie i pozwala na podgląd na żywo
+        if (isMobile) {
+            let sessionFinal = "";
+            let sessionInterim = "";
+            
+            // Iterujemy zawsze od 0, budując pełny transkrypt sesji
+            for (let i = 0; i < event.results.length; ++i) {
+                if (event.results[i].isFinal) {
+                    sessionFinal += event.results[i][0].transcript;
+                } else {
+                    sessionInterim += event.results[i][0].transcript;
+                }
+            }
+            
+            // Łączymy z tekstem początkowym
+            const currentBase = startRecordingTextRef.current || "";
+            const combined = currentBase 
+               ? (sessionFinal ? `${currentBase} ${sessionFinal}` : currentBase) 
+               : sessionFinal;
+            
+            // Usuwamy podwójne spacje i trymujemy
+            const cleaned = combined.replace(/\s+/g, ' ').trim();
+            
+            setInputText(cleaned);
+            setInterimTranscript(sessionInterim);
 
-        // RESETUJEMY transkrypt i budujemy od nowa (fix dla Androida/Chrome)
-        let fullFinal = "";
-        let fullInterim = "";
+            // Timer do wysyłania (resetowany przy każdym zdarzeniu mowy)
+            if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+            silenceTimerRef.current = setTimeout(() => {
+                if (!isProcessingSpeechRef.current && cleaned) {
+                    isProcessingSpeechRef.current = true;
+                    setInputText(current => {
+                        handleSendMessage(current);
+                        return "";
+                    });
+                    stopRecording();
+                }
+            }, 2000);
+            
+            return; // Kończymy obsługę dla mobile
+        }
 
-        // Zawsze iterujemy od 0, by uniknąć duplikatów przy błędnym resultIndex
-        for (let i = 0; i < event.results.length; ++i) {
+        // --- Standardowa logika dla PC (Chunking) ---
+        let finalChunk = "";
+        let interimChunk = "";
+
+        // Pętla po wynikach
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
           if (event.results[i].isFinal) {
-            fullFinal += event.results[i][0].transcript;
+            finalChunk += event.results[i][0].transcript;
           } else {
-            fullInterim += event.results[i][0].transcript;
+            interimChunk += event.results[i][0].transcript;
           }
         }
 
-        const finalTrimmed = fullFinal.trim();
-        const interimTrimmed = fullInterim.trim();
-        
-        // 1. BUDOWANIE TEKSTU
-        const base = textBeforeRecordingRef.current;
-        // Dodaj spację tylko jeśli mamy bazę i nowy tekst
-        const sep1 = base && finalTrimmed ? " " : "";
-        // Dodaj spację między finalnym a tymczasowym
-        const sep2 = (base || finalTrimmed) && interimTrimmed ? " " : "";
-        
-        let newText = "";
-
-        if (isMobile) {
-            // Na mobile pokazujemy WSZYSTKO w głównym inpucie (final + interim)
-            newText = `${base}${sep1}${finalTrimmed}${sep2}${interimTrimmed}`;
-            // Czyścimy osobny podgląd, bo jest w inpucie
-            setInterimTranscript(""); 
-        } else {
-            // Na PC w inpucie tylko zatwierdzone, interim w dymku
-            newText = `${base}${sep1}${finalTrimmed}`;
-            setInterimTranscript(interimTrimmed);
+        // --- 1. OBSŁUGA FINALNEGO TEKSTU (Komputer) ---
+        if (finalChunk) {
+          const finalTrimmed = finalChunk.trim();
+          // Na PC wysyłamy od razu po wykryciu końca zdania
+          if (!isProcessingSpeechRef.current) {
+             isProcessingSpeechRef.current = true;
+             handleSendMessage(finalTrimmed);
+             stopRecording();
+          }
         }
 
-        // Aktualizujemy input (tylko jeśli się zmienił, ale tutaj zawsze nadpisujemy dla spójności)
-        setInputText(newText);
-
-        // 2. AUTO-WYSYŁANIE (MOBILE)
-        // Jeśli mamy finalny tekst i BRAK interim (użytkownik przestał mówić) -> ustawiamy timer
-        if (isMobile && finalTrimmed && !interimTrimmed) {
-             silenceTimerRef.current = setTimeout(() => {
-              if (!isProcessingSpeechRef.current) {
-                isProcessingSpeechRef.current = true;
-                handleSendMessage(newText.trim()); 
-                stopRecording();
-              }
-            }, 2000);
-        } else if (!isMobile && finalTrimmed) {
-             // PC: Wysyłamy natychmiast po wykryciu finalnego tekstu (zachowanie oryginalne)
-             if (!isProcessingSpeechRef.current) {
-                isProcessingSpeechRef.current = true;
-                handleSendMessage(newText.trim());
-                stopRecording();
-            }
+        // --- 2. OBSŁUGA TYMCZASOWEGO TEKSTU ---
+        if (interimChunk) {
+          setInterimTranscript(interimChunk);
+        } else {
+          setInterimTranscript("");
         }
       };
 
@@ -661,12 +674,11 @@ const App: React.FC = () => {
     
     // Reset flagi blokującej podwójne wiadomości
     isProcessingSpeechRef.current = false;
+    
+    // Zapisz obecny tekst (dla logiki mobile reconstruction)
+    startRecordingTextRef.current = inputText;
 
     setState((prev) => ({ ...prev, isRecording: true, error: null }));
-    
-    // Zapisz stan inputa przed nagrywaniem
-    textBeforeRecordingRef.current = inputText;
-
     if (state.settings.sttModel === "browser") {
       try {
         recognitionRef.current?.start();
@@ -924,13 +936,20 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
 
         {state.isRecording && state.settings.sttModel === "browser" && isMobile && (
            <div className="flex justify-center mb-2 animate-pulse">
-              <p className="text-xs text-gray-500 italic bg-white/80 px-3 py-1 rounded-full shadow-sm">
-                 {t.mobileListeningHint}
-              </p>
+              <div className="text-sm font-medium text-gray-700 bg-white/95 px-4 py-3 rounded-2xl shadow-md border border-blue-200 max-w-[90%] text-center">
+                 {inputText || interimTranscript ? (
+                     <span>
+                        {inputText} 
+                        {interimTranscript && <span className="text-gray-400 ml-1">{interimTranscript}</span>}
+                     </span>
+                 ) : (
+                     <span className="text-gray-500 italic">{t.mobileListeningHint}</span>
+                 )}
+              </div>
            </div>
         )}
 
-        {interimTranscript && (
+        {interimTranscript && !isMobile && (
           <div className="flex justify-end mb-4">
             <div className="max-w-[80%] rounded-2xl px-4 py-3 bg-gray-100 text-gray-500 rounded-tr-none border border-gray-200 opacity-80 italic">
               <p className="text-sm">{interimTranscript}...</p>
@@ -985,7 +1004,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
           </button>
 
           <div className="flex-1 h-12 sm:h-14 bg-gray-100 rounded-full px-4 sm:px-5 flex items-center transition-all relative overflow-hidden">
-            {state.isRecording && !isMobile ? (
+            {state.isRecording ? (
               <SoundWave />
             ) : (
               <>
