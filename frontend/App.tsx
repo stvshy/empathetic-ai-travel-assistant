@@ -10,6 +10,59 @@ const getIsMobile = () => {
   return /android|ipad|iphone|ipod/i.test(userAgent);
 };
 const isMobile = getIsMobile();
+
+// --- SPRAWDZANIE OBSŁUGI WEB SPEECH API ---
+const checkWebSpeechSupport = () => {
+  if (typeof window === "undefined") return { stt: false, tts: false };
+
+  const ua = navigator.userAgent || navigator.vendor || (window as any).opera || "";
+  const isOpera = /\bOPR\//i.test(ua) || /\bOpera\b/i.test(ua);
+  const isProbablyMobile = /android|ipad|iphone|ipod/i.test(ua);
+  const isOperaDesktop = isOpera && !isProbablyMobile;
+
+  const host = window.location?.hostname || "";
+  const isLocalhost = host === "localhost" || host === "127.0.0.1";
+  const isSecureOrLocal = !!(window.isSecureContext || isLocalhost);
+  const hasGetUserMedia = !!(navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === "function");
+  
+  // Sprawdzenie Web Speech Recognition (STT) - rzeczywisty test instancjonowania
+  let sttWorking = false;
+  try {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    // Opera (desktop) często wystawia obiekt, ale STT realnie nie działa.
+    if (SpeechRecognition && !isOperaDesktop && isSecureOrLocal && hasGetUserMedia) {
+      const temp = new SpeechRecognition();
+      const hasStart = typeof (temp as any).start === "function";
+      const hasStopOrAbort = typeof (temp as any).stop === "function" || typeof (temp as any).abort === "function";
+
+      if (hasStart && hasStopOrAbort) {
+        // Nie wywołujemy start() (wymaga user-gesture i permission), tylko sprawdzamy realne metody.
+        if (typeof (temp as any).abort === "function") (temp as any).abort();
+        sttWorking = true;
+      }
+    }
+  } catch (e) {
+    console.warn("⚠️ Web Speech Recognition niedostępny:", e);
+    sttWorking = false;
+  }
+  
+  // Sprawdzenie Web Speech Synthesis (TTS) - rzeczywisty test instancjonowania
+  let ttsWorking = false;
+  try {
+    if ("speechSynthesis" in window && "SpeechSynthesisUtterance" in window) {
+      const temp = new SpeechSynthesisUtterance("");
+      // Jeśli możemy utworzyć utterance, API jest dostępne
+      ttsWorking = true;
+    }
+  } catch (e) {
+    console.warn("⚠️ Web Speech Synthesis niedostępny:", e);
+    ttsWorking = false;
+  }
+  
+  return { stt: sttWorking, tts: ttsWorking };
+};
+
+const webSpeechSupport = checkWebSpeechSupport();
 // --- SŁOWNIK TŁUMACZEŃ ---
 const TRANSLATIONS = {
   pl: {
@@ -50,6 +103,8 @@ const TRANSLATIONS = {
     profileEmpDesc: "Whisper AI • Emocje",
     tapToPlayTTS: "Kliknij, aby odsłuchać odpowiedź",
     copyright: "Mateusz Staszków. Wszelkie prawa zastrzeżone.",
+    webSttNotSupported: "ℹ️ Web Speech Recognition nie jest obsługiwany w tej przeglądarce",
+    webTtsNotSupported: "ℹ️ Web Speech Synthesis nie jest obsługiwany w tej przeglądarce",
   },
   en: {
     title: "Travel Assistant",
@@ -90,6 +145,8 @@ const TRANSLATIONS = {
     profileEmpDesc: "Whisper AI • Emotions",
     tapToPlayTTS: "Tap to play the assistant reply",
     copyright: "Mateusz Staszków. All rights reserved.",
+    webSttNotSupported: "ℹ️ Web Speech Recognition is not supported in this browser",
+    webTtsNotSupported: "ℹ️ Web Speech Synthesis is not supported in this browser",
   },
 };
 
@@ -127,6 +184,15 @@ const App: React.FC = () => {
   // --- KONFIGURACJA ADRESU API ---
     const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/$/, "");
 
+  // --- DOMYŚLNE USTAWIENIA NA PODSTAWIE OBSŁUGI PRZEGLĄDARKI ---
+  const getDefaultSettings = (): Settings => ({
+    language: "en" as const,
+    sttModel: webSpeechSupport.stt ? "browser" : "whisper",
+    ttsModel: webSpeechSupport.tts ? "browser" : "piper",
+    enableEmotions: false,
+    enableTTS: webSpeechSupport.tts, // Automatycznie włącz TTS jeśli jest obsługiwany
+  });
+
   const [state, setState] = useState<AppState>({
     isRecording: false,
     isProcessing: false,
@@ -134,13 +200,7 @@ const App: React.FC = () => {
     messages: [],
     error: null,
     showSettings: false,
-    settings: {
-      language: "en",
-      sttModel: "browser",
-      ttsModel: "browser",
-      enableEmotions: false,
-      enableTTS: false,
-    },
+    settings: getDefaultSettings(),
   });
   const [availableVoices, setAvailableVoices] = useState<
     SpeechSynthesisVoice[]
@@ -901,12 +961,31 @@ const App: React.FC = () => {
     mobileFinalRef.current = "";
     mobileInterimRef.current = "";
 
-    setState((prev) => ({ ...prev, isRecording: true, error: null }));
-    if (state.settings.sttModel === "browser") {
+    const effectiveSttModel =
+      state.settings.sttModel === "browser" && !webSpeechSupport.stt
+        ? "whisper"
+        : state.settings.sttModel;
+
+    setState((prev) => ({
+      ...prev,
+      isRecording: true,
+      error: null,
+      settings:
+        prev.settings.sttModel === "browser" && !webSpeechSupport.stt
+          ? { ...prev.settings, sttModel: "whisper", enableEmotions: false }
+          : prev.settings,
+    }));
+
+    if (effectiveSttModel === "browser") {
       try {
         recognitionRef.current?.start();
       } catch (e) {
         console.error("STT Error:", e);
+        setState((prev) => ({
+          ...prev,
+          isRecording: false,
+          settings: { ...prev.settings, sttModel: "whisper", enableEmotions: false },
+        }));
       }
       return;
     }
@@ -1094,6 +1173,10 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                 settings: {
                   ...prev.settings,
                   enableTTS: nextEnable,
+                  ttsModel:
+                    nextEnable && !webSpeechSupport.tts
+                      ? "piper"
+                      : prev.settings.ttsModel,
                 },
               }));
             }}
@@ -1113,16 +1196,19 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
 
           <button
             onClick={() =>
-              setState((prev) => ({
-                ...prev,
-                settings: {
-                  ...prev.settings,
-                  enableEmotions: !prev.settings.enableEmotions,
-                  sttModel: !prev.settings.enableEmotions
-                    ? "whisper"
-                    : "browser",
-                },
-              }))
+              setState((prev) => {
+                const nextEnableEmotions = !prev.settings.enableEmotions;
+                return {
+                  ...prev,
+                  settings: {
+                    ...prev.settings,
+                    enableEmotions: nextEnableEmotions,
+                    sttModel: nextEnableEmotions
+                      ? "whisper"
+                      : (webSpeechSupport.stt ? "browser" : "whisper"),
+                  },
+                };
+              })
             }
             className={`rounded-full flex items-center justify-center transition-all text-base sm:text-lg ${
               state.settings.enableEmotions
@@ -1379,8 +1465,8 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                         ...prev,
                         settings: {
                           ...prev.settings,
-                          sttModel: "browser",
-                          ttsModel: "browser",
+                          sttModel: webSpeechSupport.stt ? "browser" : "whisper",
+                          ttsModel: webSpeechSupport.tts ? "browser" : "piper",
                           enableEmotions: false,
                           enableTTS: false,
                         },
@@ -1406,7 +1492,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                         settings: {
                           ...prev.settings,
                           sttModel: "whisper",
-                          ttsModel: "browser",
+                          ttsModel: webSpeechSupport.tts ? "browser" : "piper",
                           enableEmotions: true,
                           enableTTS: true,
                         },
@@ -1478,6 +1564,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                           settings: {
                             ...prev.settings,
                             enableTTS: newVal,
+                            ttsModel: newVal && !webSpeechSupport.tts ? "piper" : prev.settings.ttsModel,
                           },
                         }));
                       }}
@@ -1552,25 +1639,38 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                     {t.inputModelLabel}
                   </label>
                   <div className="flex bg-gray-100 p-1 rounded-lg min-h-[44px]">
-                    <button
-                      onClick={() =>
-                        setState((prev) => ({
-                          ...prev,
-                          settings: {
-                            ...prev.settings,
-                            sttModel: "browser",
-                            enableEmotions: false,
-                          },
-                        }))
-                      } // Browser wymusza brak emocji
-                      className={`flex-1 py-1.5 rounded-md text-[13px] font-medium transition-all ${
-                        state.settings.sttModel === "browser"
-                          ? "bg-white shadow text-blue-500"
-                          : "text-gray-500"
-                      }`}
-                    >
-                      {t.modelWeb}
-                    </button>
+                    <div className="relative flex-1 group">
+                      <button
+                        onClick={() =>
+                          setState((prev) => ({
+                            ...prev,
+                            settings: {
+                              ...prev.settings,
+                              sttModel: "browser",
+                              enableEmotions: false,
+                            },
+                          }))
+                        }
+                        disabled={!webSpeechSupport.stt}
+                        aria-disabled={!webSpeechSupport.stt}
+                        className={`w-full py-1.5 rounded-md text-[13px] font-medium transition-all ${
+                          state.settings.sttModel === "browser"
+                            ? "bg-white shadow text-blue-500"
+                            : webSpeechSupport.stt ? "text-gray-500 cursor-pointer" : "text-gray-300 cursor-not-allowed"
+                        } ${!webSpeechSupport.stt ? "opacity-50" : ""}`}
+                      >
+                        {t.modelWeb}
+                      </button>
+
+                      {!webSpeechSupport.stt && (
+                        <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 -top-2 -translate-y-full opacity-0 group-hover:opacity-100 transition-opacity z-50">
+                          <div className="bg-gray-900 text-white text-[11px] leading-relaxed px-3 py-2 rounded-lg shadow-lg w-max max-w-[200px] text-center">
+                            {t.webSttNotSupported}
+                          </div>
+                          <div className="w-0 h-0 mx-auto border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-900" />
+                        </div>
+                      )}
+                    </div>
                     <button
                       onClick={() =>
                         setState((prev) => ({
@@ -1600,21 +1700,34 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                     {t.voiceModelLabel}
                   </label>
                   <div className="flex bg-gray-100 p-1 rounded-lg min-h-[44px]">
-                    <button
-                      onClick={() =>
-                        setState((prev) => ({
-                          ...prev,
-                          settings: { ...prev.settings, ttsModel: "browser" },
-                        }))
-                      }
-                      className={`flex-1 py-1.5 rounded-md text-[13px] font-medium transition-all ${
-                        state.settings.ttsModel === "browser"
-                          ? "bg-white shadow text-blue-500"
-                          : "text-gray-500"
-                      }`}
-                    >
-                      {t.modelWeb}
-                    </button>
+                    <div className="relative flex-1 group">
+                      <button
+                        onClick={() =>
+                          setState((prev) => ({
+                            ...prev,
+                            settings: { ...prev.settings, ttsModel: "browser" },
+                          }))
+                        }
+                        disabled={!webSpeechSupport.tts}
+                        aria-disabled={!webSpeechSupport.tts}
+                        className={`w-full py-1.5 rounded-md text-[13px] font-medium transition-all ${
+                          state.settings.ttsModel === "browser"
+                            ? "bg-white shadow text-blue-500"
+                            : webSpeechSupport.tts ? "text-gray-500 cursor-pointer" : "text-gray-300 cursor-not-allowed"
+                        } ${!webSpeechSupport.tts ? "opacity-50" : ""}`}
+                      >
+                        {t.modelWeb}
+                      </button>
+
+                      {!webSpeechSupport.tts && (
+                        <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 -top-2 -translate-y-full opacity-0 group-hover:opacity-100 transition-opacity z-50">
+                          <div className="bg-gray-900 text-white text-[11px] leading-relaxed px-3 py-2 rounded-lg shadow-lg w-max max-w-[200px] text-center">
+                            {t.webTtsNotSupported}
+                          </div>
+                          <div className="w-0 h-0 mx-auto border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-900" />
+                        </div>
+                      )}
+                    </div>
                     <button
                       onClick={() =>
                         setState((prev) => ({
