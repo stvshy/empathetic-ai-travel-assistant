@@ -1664,7 +1664,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
 
                       {!webSpeechSupport.stt && (
                         <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 -top-2 -translate-y-full opacity-0 group-hover:opacity-100 transition-opacity z-50">
-                          <div className="bg-gray-900 text-white text-[11px] leading-relaxed px-3 py-2 rounded-lg shadow-lg w-max max-w-[200px] text-center">
+                          <div className="bg-gray-900 text-white text-[10px] sm:text-[11px] leading-relaxed px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg shadow-lg w-max max-w-[150px] sm:max-w-[200px] text-center">
                             {t.webSttNotSupported}
                           </div>
                           <div className="w-0 h-0 mx-auto border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-900" />
@@ -1721,7 +1721,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
 
                       {!webSpeechSupport.tts && (
                         <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 -top-2 -translate-y-full opacity-0 group-hover:opacity-100 transition-opacity z-50">
-                          <div className="bg-gray-900 text-white text-[11px] leading-relaxed px-3 py-2 rounded-lg shadow-lg w-max max-w-[200px] text-center">
+                          <div className="bg-gray-900 text-white text-[10px] sm:text-[11px] leading-relaxed px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg shadow-lg w-max max-w-[150px] sm:max-w-[200px] text-center">
                             {t.webTtsNotSupported}
                           </div>
                           <div className="w-0 h-0 mx-auto border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-900" />
