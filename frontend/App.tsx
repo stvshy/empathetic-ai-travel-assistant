@@ -1484,7 +1484,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                         : "border-gray-100 bg-white"
                     }`}
                   >
-                    <div className="font-bold text-gray-800 text-sm mb-3 whitespace-nowrap">
+                    <div className="font-semibold text-gray-800 text-sm mb-3 whitespace-nowrap">
                       {t.profileFast}
                     </div>
                     <div className="text-[11.5px] text-gray-500 leading-tight">
@@ -1510,7 +1510,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                         : "border-gray-100 bg-white"
                     }`}
                   >
-                    <div className="font-bold text-gray-800 text-sm mb-3 whitespace-nowrap">
+                    <div className="font-semibold text-gray-800 text-sm mb-3 whitespace-nowrap">
                       {t.profileNormal}
                     </div>
                     <div className="text-[11.5px] text-gray-500 leading-tight">
@@ -1536,7 +1536,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                         : "border-gray-100 bg-white"
                     }`}
                   >
-                    <div className="font-bold text-gray-800 text-sm mb-3 whitespace-nowrap">
+                    <div className="font-semibold text-gray-800 text-sm mb-3 whitespace-nowrap">
                       {t.profileEmp}
                     </div>
                     <div className="text-[11.5px] text-gray-500 leading-tight">
