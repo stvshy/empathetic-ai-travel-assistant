@@ -109,6 +109,14 @@ const TRANSLATIONS = {
     copyright: "Mateusz Staszków. Wszelkie prawa zastrzeżone.",
     webSttNotSupported: "ℹ️ Web Speech Recognition nie jest obsługiwany w tej przeglądarce",
     webTtsNotSupported: "ℹ️ Web Speech Synthesis nie jest obsługiwany w tej przeglądarce",
+    helpQuickProfiles:
+      "Szybki: Web STT + Web TTS. Web TTS jest najszybszym modelem głosu, ale jego jakość zależy od przeglądarki. Różnicę zauważysz głównie przy odczytywaniu odpowiedzi LLM przez TTS. Czas odpowiedzi tekstowej pozostaje taki sam jak w trybie Normalnym. Model nie wykrywa emocji użytkownika podczas mówienia do mikrofonu — wykrywa tylko słowa i odpowiada na ich podstawie.\n\nNormalny: Edge TTS + Web STT. Najlepszy kompromis między jakością a szybkością odpowiedzi LLM czytanej przez TTS. Model nie wykrywa emocji użytkownika podczas mówienia do mikrofonu — wykrywa tylko słowa i odpowiada na ich podstawie.\n\nEmpatyczny: Whisper STT + Edge TTS. Whisper jest wymagany do wykrywania emocji, ale wydłuża czas odpowiedzi i wymaga ręcznego wciśnięcia przycisku po skończeniu mówienia (nie działa automatycznie). Model wykrywa emocje i przekazuje je do LLM, a LLM dopasowuje styl odpowiedzi do emocji użytkownika.",
+    helpAdvanced:
+      "Czytanie Wiadomości (TTS): Włącza/wyłącza odczytywanie odpowiedzi asystenta głosem.\n\nWykrywanie Emocji: Wymaga modelu Whisper. Gdy aktywne, aplikacja analizuje emocje w głosie użytkownika i przekazuje je do LLM.",
+    helpInputModel:
+      "Web (Szybki): Najszybsze rozpoznawanie mowy w przeglądarce, bez wykrywania emocji.\n\nWhisper (Wolny): Dokładniejsze rozpoznawanie i możliwość wykrywania emocji, ale wolniejsze i wymaga ręcznego zatrzymania nagrania.",
+    helpVoiceModel:
+      "Web: Najszybszy odczyt głosu, jakość zależna od przeglądarki i urządzenia.\n\nEdge: Najlepsza jakość i bardzo dobry czas odpowiedzi.\n\nPiper: Działa po stronie serwera, dlatego ma największe opóźnienie.",
   },
   en: {
     title: "Travel Assistant",
@@ -155,6 +163,14 @@ const TRANSLATIONS = {
     copyright: "Mateusz Staszków. All rights reserved.",
     webSttNotSupported: "ℹ️ Web Speech Recognition is not supported in this browser",
     webTtsNotSupported: "ℹ️ Web Speech Synthesis is not supported in this browser",
+    helpQuickProfiles:
+      "Fast: Web STT + Web TTS. Web TTS is the fastest voice model, but its quality depends on your browser. You will mainly notice a difference when LLM replies are read aloud by TTS. The text response time stays the same as in Normal mode. The model does not detect user emotions from speech — it only detects spoken words and responds to them.\n\nNormal: Edge TTS + Web STT. The best compromise between quality and speed of LLM feedback read by TTS. The model does not detect user emotions from speech — it only detects spoken words and responds to them.\n\nEmpathetic: Whisper STT + Edge TTS. Whisper is required for emotion detection, but it increases response time and requires pressing a button when you finish speaking (it does not work automatically). The model detects emotions and sends them to the LLM, and the LLM adjusts the response style to the detected user emotions.",
+    helpAdvanced:
+      "Read Messages (TTS): Turns voice playback of assistant responses on/off.\n\nEmotion Detection: Requires Whisper. When enabled, the app analyzes emotions in the user's voice and passes them to the LLM.",
+    helpInputModel:
+      "Web (Fast): Fastest browser-based speech recognition, without emotion detection.\n\nWhisper (Slow): More accurate recognition with emotion detection support, but slower and requires manual stop.",
+    helpVoiceModel:
+      "Web: Fastest voice playback, quality depends on browser and device.\n\nEdge: Best quality with very good response time.\n\nPiper: Server-side voice synthesis, so it has the highest delay.",
   },
 };
 
@@ -162,6 +178,24 @@ interface IWindow extends Window {
   webkitSpeechRecognition: any;
   SpeechRecognition: any;
 }
+
+import {
+  useFloating,
+  offset,
+  flip,
+  shift,
+  size,
+  arrow,
+  autoUpdate,
+  useHover,
+  useFocus,
+  useDismiss,
+  useRole,
+  useInteractions,
+  FloatingArrow,
+  FloatingPortal,
+} from "@floating-ui/react";
+import type { Placement } from "@floating-ui/react";
 
 // --- KOMPONENT: Animacja Fali ---
 const SoundWave: React.FC = () => (
@@ -187,6 +221,110 @@ const SoundWave: React.FC = () => (
     `}</style>
   </div>
 );
+
+const HelpTooltip: React.FC<{
+  content: string;
+  ariaLabel: string;
+  placement?: Placement;
+}> = ({ content, ariaLabel, placement: userPlacement = "bottom" }) => {
+  const arrowRef = useRef(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const [boundary, setBoundary] = useState<HTMLElement | null>(null);
+  const modalSidePadding = 18;
+
+  useEffect(() => {
+    if (isOpen) {
+       // Find the modal content when opening
+       const modal = document.querySelector('.settings-modal-content') as HTMLElement;
+       setBoundary(modal);
+    }
+  }, [isOpen]);
+
+  const { refs, floatingStyles, context } = useFloating({
+    placement: userPlacement,
+    open: isOpen,
+    onOpenChange: setIsOpen,
+    middleware: [
+      offset(10),
+      flip({
+        boundary: boundary || undefined,
+        padding: modalSidePadding,
+      }),
+      shift({ 
+        boundary: boundary || undefined, 
+        padding: modalSidePadding,
+      }),
+      size({
+        boundary: boundary || undefined,
+        padding: modalSidePadding,
+        apply({ availableWidth, elements }) {
+          const fullTooltipWidth = Math.max(220, Math.floor(availableWidth));
+          Object.assign(elements.floating.style, {
+            width: `${fullTooltipWidth}px`,
+            maxWidth: `${fullTooltipWidth}px`,
+          });
+        },
+      }),
+      arrow({ element: arrowRef }),
+    ],
+    whileElementsMounted: autoUpdate,
+  });
+
+  const hover = useHover(context, { move: false, enabled: !isMobile });
+  const focus = useFocus(context);
+  const dismiss = useDismiss(context);
+  const role = useRole(context, { role: "tooltip" });
+
+  const { getReferenceProps, getFloatingProps } = useInteractions([
+    hover,
+    focus,
+    dismiss,
+    role,
+  ]);
+
+  return (
+    <>
+      <button
+        ref={refs.setReference}
+        type="button"
+        className="w-5 h-5 rounded-full border border-gray-300 text-gray-500 text-[10px] font-bold leading-none flex items-center justify-center hover:bg-gray-100 cursor-help"
+        aria-label={ariaLabel}
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsOpen((prev) => !prev);
+        }}
+        {...getReferenceProps()}
+      >
+        ?
+      </button>
+
+      {isOpen && (
+        <FloatingPortal>
+          <div
+            ref={refs.setFloating}
+            style={floatingStyles}
+            className="z-[9999] focus:outline-none"
+            {...getFloatingProps()}
+          >
+            <div className="relative rounded-xl border border-slate-300/80 bg-slate-100/55 supports-[backdrop-filter]:bg-slate-100/25 backdrop-blur-xl backdrop-saturate-150 shadow-[0_16px_40px_rgba(15,23,42,0.28)] p-3 text-[11px] sm:text-xs text-slate-600 leading-relaxed whitespace-pre-line break-words">
+              {content}
+              <FloatingArrow
+                ref={arrowRef}
+                context={context}
+                fill="rgba(241, 245, 249, 0.92)"
+                stroke="rgba(203, 213, 225, 0.8)"
+                strokeWidth={1}
+                width={14}
+                height={7}
+                tipRadius={1}
+              />
+            </div>
+          </div>
+        </FloatingPortal>
+      )}
+    </>
+  );
+};
 
 const App: React.FC = () => {
   // --- KONFIGURACJA ADRESU API ---
@@ -1392,7 +1530,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
       {/* --- SETTINGS MODAL --- */}
       {state.showSettings && (
         <div className="absolute inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-white w-full sm:max-w-md rounded-3xl p-4 sm:p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh] mx-auto">
+          <div className="settings-modal-content bg-white w-full sm:max-w-md rounded-3xl p-4 sm:p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh] mx-auto">
             <div className="flex justify-between items-center mb-4 sm:mb-6">
               <h2 className="text-lg sm:text-xl font-bold text-gray-800">
                 {t.settingsTitle}
@@ -1461,9 +1599,12 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
 
               {/* Profile */}
               <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-                  {t.predefinedLabel}
-                </label>
+                <div className="flex items-center gap-2 mb-2">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                    {t.predefinedLabel}
+                  </label>
+                  <HelpTooltip content={t.helpQuickProfiles} ariaLabel={`${t.predefinedLabel} help`} />
+                </div>
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     onClick={() =>
@@ -1548,13 +1689,16 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
 
               {/* Advanced */}
               <div className="border-t pt-4">
-                <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">
-                  {t.advancedLabel}
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                    {t.advancedLabel}
+                  </div>
+                  <HelpTooltip content={t.helpAdvanced} ariaLabel={`${t.advancedLabel} help`} />
                 </div>
 
                 {/* Feature Toggles */}
                 <div className="mb-4 border border-gray-200 rounded-2xl bg-white">
-                  <label className="flex items-center justify-between px-3 py-2 rounded-t-2xl cursor-pointer hover:bg-gray-50 gap-3">
+                  <label className="flex items-center justify-between px-3 py-3 rounded-t-2xl cursor-pointer hover:bg-gray-50 gap-3">
                     <span className="text-sm font-medium text-gray-700">
                       {t.enableTTS}
                     </span>
@@ -1607,7 +1751,9 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                   <div className="border-t border-gray-200" />
 
                   <label
-                    className={`flex items-center justify-between px-3 py-2 rounded-b-2xl cursor-pointer hover:bg-gray-50 gap-3 ${
+                    className={`flex items-center justify-between px-3 rounded-b-2xl cursor-pointer hover:bg-gray-50 gap-3 ${
+                      state.settings.sttModel === "browser" ? "py-2" : "py-3"
+                    } ${
                       state.settings.sttModel === "browser" ? "opacity-50" : ""
                     }`}
                   >
@@ -1667,9 +1813,12 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
 
                 {/* STT Select */}
                 <div className="mb-3">
-                  <label className="text-[13px] text-gray-500 font-semibold mb-1 block">
-                    {t.inputModelLabel}
-                  </label>
+                  <div className="flex items-center gap-2 mb-1">
+                    <label className="text-[13px] text-gray-500 font-semibold block">
+                      {t.inputModelLabel}
+                    </label>
+                    <HelpTooltip content={t.helpInputModel} ariaLabel={`${t.inputModelLabel} help`} />
+                  </div>
                   <div className="flex bg-gray-100 p-1 rounded-lg min-h-[44px]">
                     <div className="relative flex-1 group">
                       <button
@@ -1728,9 +1877,12 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
 
                 {/* TTS Select */}
                 <div>
-                  <label className="text-[13px] text-gray-500 font-semibold mb-1 block">
-                    {t.voiceModelLabel}
-                  </label>
+                  <div className="flex items-center gap-2 mb-1">
+                    <label className="text-[13px] text-gray-500 font-semibold block">
+                      {t.voiceModelLabel}
+                    </label>
+                    <HelpTooltip content={t.helpVoiceModel} ariaLabel={`${t.voiceModelLabel} help`} placement="top" />
+                  </div>
                   <div className="flex bg-gray-100 p-1 rounded-lg min-h-[44px]">
                     <div className="relative flex-1 group">
                       <button
@@ -1794,11 +1946,6 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                   {state.settings.ttsModel === "piper" && (
                     <p className="text-[10px] text-orange-500 mt-1 ml-1">
                       {t.piperWarning}
-                    </p>
-                  )}
-                  {state.settings.ttsModel === "edge" && (
-                    <p className="text-[10px] text-green-600 mt-1 ml-1">
-                      {t.edgeWarning}
                     </p>
                   )}
                 </div>
