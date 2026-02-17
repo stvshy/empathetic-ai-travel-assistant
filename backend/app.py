@@ -3,6 +3,7 @@ from flask_cors import CORS
 import logging
 import os
 import tempfile
+import io
 import subprocess
 import json
 from dotenv import load_dotenv
@@ -40,8 +41,17 @@ if platform.system() == "Windows":
     PIPER_EXE = BASE / "piper_binary" / "piper.exe"
 else:
     PIPER_EXE = BASE / "piper" / "piper"
-MODEL = BASE / "pl_PL-gosia-medium.onnx"
-CONFIG = BASE / "pl_PL-gosia-medium.onnx.json"
+# Definicja dostępnych modeli
+VOICE_MODELS = {
+    "pl": {
+        "model": BASE / "pl_PL-gosia-medium.onnx",
+        "config": BASE / "pl_PL-gosia-medium.onnx.json"
+    },
+    "en": {
+        "model": BASE / "en_US-ryan-medium.onnx", 
+        "config": BASE / "en_US-ryan-medium.onnx.json" 
+    }
+}
 
 # Ustawienia środowiskowe dla Pipera (szybsze działanie na CPU)
 ENV = os.environ.copy()
@@ -102,6 +112,7 @@ SYSTEM_INSTRUCTIONS = {
     """,
     
     "en": """
+    !!! MANDATORY LANGUAGE: ALWAYS RESPOND IN ENGLISH, REGARDLESS OF USER'S INPUT LANGUAGE !!!
     ROLE:
     You are a Personal Travel Architect, but you act like a Curious and Engaged Friend. Your task is not to sell, but to co-create a VERY DETAILED ideal plan with the user. Be inquisitive!
     ----
@@ -169,9 +180,12 @@ if platform.system() == "Windows":
         emotion_classifier(dummy_audio)
 
         # 3. Przepuszczamy ducha przez Pipera (Cache dyskowy + test binarki)
-        if PIPER_EXE.exists() and MODEL.exists():
+        default_model = VOICE_MODELS["pl"]["model"]
+        default_config = VOICE_MODELS["pl"]["config"]
+
+        if PIPER_EXE.exists() and default_model.exists():
             subprocess.run(
-                [str(PIPER_EXE), "-m", str(MODEL), "-c", str(CONFIG), "-f", "-", "--length_scale", "1.0"],
+                [str(PIPER_EXE), "-m", str(default_model), "-c", str(default_config), "-f", "-", "--length_scale", "1.0"],
                 input=".".encode("utf-8"),
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
@@ -333,36 +347,50 @@ def health_check():
 # --- ENDPOINT 4: TEXT-TO-SPEECH (Piper) ---
 @app.route("/tts", methods=["POST"])
 def tts():
-    # 1. Walidacja czy pliki istnieją
     if not PIPER_EXE.exists():
         logger.error(f"❌ Nie znaleziono Pipera: {PIPER_EXE}")
         return jsonify({"error": "Brak pliku piper.exe na serwerze"}), 500
-    if not MODEL.exists():
-        logger.error(f"❌ Nie znaleziono modelu: {MODEL}")
-        return jsonify({"error": "Brak modelu głosu (.onnx) na serwerze"}), 500
 
-    # 2. Pobranie danych
     data = request.json
     text = data.get("text")
+    lang = data.get("language", "pl")  # Domyślnie PL
+
+    # --- DEBUG LOG ---
+    print(f"📢 TTS REQUEST: Tekst='{text[:20]}...', Język='{lang}'")
+    # -----------------
+
     if not text:
         return jsonify({"error": "Brak tekstu"}), 400
 
-    # 3. Plik tymczasowy
+    # Wybór modelu
+    voice_data = VOICE_MODELS.get(lang, VOICE_MODELS["pl"])
+    model_path = voice_data["model"]
+    config_path = voice_data["config"]
+
+    if not model_path.exists():
+        logger.error(f"❌ Nie znaleziono pliku modelu: {model_path}")
+        # Fallback do polskiego, jeśli angielski nie istnieje
+        if lang != "pl" and VOICE_MODELS["pl"]["model"].exists():
+             logger.warning("⚠️ Używam modelu PL jako fallback!")
+             model_path = VOICE_MODELS["pl"]["model"]
+             config_path = VOICE_MODELS["pl"]["config"]
+        else:
+             return jsonify({"error": f"Brak modelu głosu"}), 500
+
+    # Tworzymy plik tymczasowy
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_file:
         tmp_filename = tmp_file.name
 
-    # 4. Budowa komendy
     cmd = [
         str(PIPER_EXE),
-        "-m", str(MODEL),
-        "-c", str(CONFIG),
+        "-m", str(model_path),
+        "-c", str(config_path),
         "-f", str(tmp_filename),
         "--sentence_silence", "0.2",
         "--length_scale", "1.0"
     ]
 
     try:
-        # 5. Uruchomienie Pipera
         subprocess.run(
             cmd,
             input=text.encode("utf-8"),
@@ -371,18 +399,14 @@ def tts():
             env=ENV
         )
 
-        # 6. Sprzątanie po wysłaniu
-        @after_this_request
-        def cleanup(response):
-            try:
-                if os.path.exists(tmp_filename):
-                    os.remove(tmp_filename)
-            except Exception as e:
-                logger.error(f"Błąd cleanup: {e}")
-            return response
+        # NAPRAWA WinError 32: Wczytujemy do RAM i usuwamy plik OD RAZU
+        with open(tmp_filename, "rb") as f:
+            audio_data = io.BytesIO(f.read())
+        
+        # Teraz bezpiecznie usuwamy plik
+        os.remove(tmp_filename)
 
-        # 7. Wysłanie pliku
-        return send_file(tmp_filename, mimetype='audio/wav', as_attachment=False)
+        return send_file(audio_data, mimetype='audio/wav', as_attachment=False, download_name='tts.wav')
 
     except subprocess.CalledProcessError as e:
         error_msg = e.stderr.decode("utf-8", errors="ignore") if e.stderr else str(e)

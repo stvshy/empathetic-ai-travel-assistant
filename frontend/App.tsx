@@ -491,7 +491,10 @@ const App: React.FC = () => {
         const res = await fetch(`${API_URL}/tts`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: cleanText }),
+          body: JSON.stringify({ 
+            text: cleanText,
+            language: settingsRef.current.language // Dodajemy aktualny język
+          }), 
         });
 
         if (!res.ok) {
