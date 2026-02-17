@@ -110,13 +110,13 @@ const TRANSLATIONS = {
     webSttNotSupported: "ℹ️ Web Speech Recognition nie jest obsługiwany w tej przeglądarce",
     webTtsNotSupported: "ℹ️ Web Speech Synthesis nie jest obsługiwany w tej przeglądarce",
     helpQuickProfiles:
-      "Szybki: Web STT + Web TTS. Web TTS jest najszybszym modelem głosu, ale jego jakość zależy od przeglądarki. Różnicę zauważysz głównie przy odczytywaniu odpowiedzi LLM przez TTS. Czas odpowiedzi tekstowej pozostaje taki sam jak w trybie Normalnym. Model nie wykrywa emocji użytkownika podczas mówienia do mikrofonu — wykrywa tylko słowa i odpowiada na ich podstawie.\n\nNormalny: Edge TTS + Web STT. Najlepszy kompromis między jakością a szybkością odpowiedzi LLM czytanej przez TTS. Model nie wykrywa emocji użytkownika podczas mówienia do mikrofonu — wykrywa tylko słowa i odpowiada na ich podstawie.\n\nEmpatyczny: Whisper STT + Edge TTS. Whisper jest wymagany do wykrywania emocji, ale wydłuża czas odpowiedzi i wymaga ręcznego wciśnięcia przycisku po skończeniu mówienia (nie działa automatycznie). Model wykrywa emocje i przekazuje je do LLM, a LLM dopasowuje styl odpowiedzi do emocji użytkownika.",
+      "**Szybki:** **Web STT** + **Web TTS**. Web TTS jest **najszybszym** modelem głosu, ale jego jakość zależy od przeglądarki. Różnicę zauważysz głównie przy **odczytywaniu odpowiedzi LLM przez TTS**. Czas odpowiedzi tekstowej pozostaje taki sam jak w trybie Normalnym. Model **nie wykrywa emocji** użytkownika podczas mówienia — wykrywa tylko słowa i odpowiada na ich podstawie.\n\n**Normalny:** **Edge TTS** + **Web STT**. Najlepszy **kompromis między jakością a szybkością** odpowiedzi LLM czytanej przez TTS. Model **nie wykrywa emocji** użytkownika podczas mówienia — wykrywa tylko słowa i odpowiada na ich podstawie.\n\n**Empatyczny:** **Whisper STT** + **Edge TTS**. Whisper jest **wymagany do wykrywania emocji**, ale **wydłuża czas odpowiedzi** i wymaga **ręcznego wciśnięcia przycisku** po skończeniu mówienia (nie działa automatycznie). Model **wykrywa emocje** i przekazuje je do LLM, a LLM **dopasowuje styl odpowiedzi** do wykrytych emocji użytkownika.",
     helpAdvanced:
-      "Czytanie Wiadomości (TTS): Włącza/wyłącza odczytywanie odpowiedzi asystenta głosem.\n\nWykrywanie Emocji: Wymaga modelu Whisper. Gdy aktywne, aplikacja analizuje emocje w głosie użytkownika i przekazuje je do LLM.",
+      "**Czytanie Wiadomości (TTS):** Włącza/wyłącza **odczytywanie odpowiedzi asystenta głosem**.\n\n**Wykrywanie Emocji:** Wymaga **Whisper**. Gdy aktywne, aplikacja **analizuje emocje** w głosie użytkownika i przekazuje je do LLM.",
     helpInputModel:
-      "Web (Szybki): Najszybsze rozpoznawanie mowy w przeglądarce, bez wykrywania emocji.\n\nWhisper (Wolny): Dokładniejsze rozpoznawanie i możliwość wykrywania emocji, ale wolniejsze i wymaga ręcznego zatrzymania nagrania.",
+      "**Web (Szybki):** **Najszybsze** rozpoznawanie mowy w przeglądarce, **bez wykrywania emocji**.\n\n**Whisper (Wolny):** Wymagany do **wykrywania emocji**, ale **wolniejszy** (długi czas odpowiedzi) i wymaga **ręcznego zatrzymania**. Nie zalecany do normalnego użytku.",
     helpVoiceModel:
-      "Web: Najszybszy odczyt głosu, jakość zależna od przeglądarki i urządzenia.\n\nEdge: Najlepsza jakość i bardzo dobry czas odpowiedzi.\n\nPiper: Działa po stronie serwera, dlatego ma największe opóźnienie.",
+      "**Web:** **Najszybszy** odczyt głosu, jakość zależna od przeglądarki i urządzenia.\n\n**Edge:** **Najlepsza jakość** z bardzo dobrym czasem odpowiedzi.\n\n**Piper:** Ma **największe opóźnienie**, nie zalecany do normalnego użytku, traktuj go raczej jako alternatywę.",
   },
   en: {
     title: "Travel Assistant",
@@ -164,13 +164,13 @@ const TRANSLATIONS = {
     webSttNotSupported: "ℹ️ Web Speech Recognition is not supported in this browser",
     webTtsNotSupported: "ℹ️ Web Speech Synthesis is not supported in this browser",
     helpQuickProfiles:
-      "Fast: Web STT + Web TTS. Web TTS is the fastest voice model, but its quality depends on your browser. You will mainly notice a difference when LLM replies are read aloud by TTS. The text response time stays the same as in Normal mode. The model does not detect user emotions from speech — it only detects spoken words and responds to them.\n\nNormal: Edge TTS + Web STT. The best compromise between quality and speed of LLM feedback read by TTS. The model does not detect user emotions from speech — it only detects spoken words and responds to them.\n\nEmpathetic: Whisper STT + Edge TTS. Whisper is required for emotion detection, but it increases response time and requires pressing a button when you finish speaking (it does not work automatically). The model detects emotions and sends them to the LLM, and the LLM adjusts the response style to the detected user emotions.",
+      "**Fast:** **Web STT** + **Web TTS**. Web TTS is the **fastest** voice model, but its quality depends on your browser. You will mainly notice a difference when **LLM replies are read aloud by TTS**. The text response time stays the same as in Normal mode. The model **does not detect emotions** — it only detects spoken words and responds to them.\n\n**Normal:** **Edge TTS** + **Web STT**. The best **compromise between quality and speed** of LLM feedback read by TTS. The model **does not detect emotions** — it only detects spoken words and responds to them.\n\n**Empathetic:** **Whisper STT** + **Edge TTS**. Whisper is **required for emotion detection**, but it **increases response time** and requires **pressing a button** when you finish speaking (it does not work automatically). The model **detects emotions** and sends them to the LLM, and the LLM **adjusts the response style** to the detected user emotions.",
     helpAdvanced:
-      "Read Messages (TTS): Turns voice playback of assistant responses on/off.\n\nEmotion Detection: Requires Whisper. When enabled, the app analyzes emotions in the user's voice and passes them to the LLM.",
+      "**Read Messages (TTS):** Turns **voice playback** of assistant responses on/off.\n\n**Emotion Detection:** Requires **Whisper**. When enabled, the app **analyzes emotions** in the user's voice and passes them to the LLM.",
     helpInputModel:
-      "Web (Fast): Fastest browser-based speech recognition, without emotion detection.\n\nWhisper (Slow): More accurate recognition with emotion detection support, but slower and requires manual stop.",
+      "**Web (Fast):** **Fastest** browser-based speech recognition, **without emotion detection**.\n\n**Whisper (Slow):** Required for **emotion detection**, but **slower** (long response time) and requires **manual stop**. Not recommended for normal use.",
     helpVoiceModel:
-      "Web: Fastest voice playback, quality depends on browser and device.\n\nEdge: Best quality with very good response time.\n\nPiper: Server-side voice synthesis, so it has the highest delay.",
+      "**Web:** **Fastest** voice playback, quality depends on browser and device.\n\n**Edge:** **Best quality** with very good response time.\n\n**Piper:** Has the **highest delay**, not recommended for normal use, treat it rather as an alternative.",
   },
 };
 
@@ -231,6 +231,11 @@ const HelpTooltip: React.FC<{
   const [isOpen, setIsOpen] = useState(false);
   const [boundary, setBoundary] = useState<HTMLElement | null>(null);
   const modalSidePadding = 18;
+
+  // Convert Markdown bold (**text**) to HTML <strong>
+  const formatContent = (text: string) => {
+    return text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -307,7 +312,7 @@ const HelpTooltip: React.FC<{
             {...getFloatingProps()}
           >
             <div className="relative rounded-xl border border-slate-300/80 bg-slate-100/55 supports-[backdrop-filter]:bg-slate-100/25 backdrop-blur-xl backdrop-saturate-150 shadow-[0_16px_40px_rgba(15,23,42,0.28)] p-3 text-[11px] sm:text-xs text-slate-600 leading-relaxed whitespace-pre-line break-words">
-              {content}
+              <span dangerouslySetInnerHTML={{ __html: formatContent(content) }} />
               <FloatingArrow
                 ref={arrowRef}
                 context={context}
@@ -1619,13 +1624,13 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                         },
                       }))
                     }
-                    className={`p-3 rounded-2xl border-2 text-left transition-all ${
+                    className={`px-3 py-2 rounded-2xl border-2 text-left transition-all ${
                       activeProfile() === "fast"
                         ? "border-blue-500 bg-blue-50"
                         : "border-gray-100 bg-white"
                     }`}
                   >
-                    <div className="font-semibold text-gray-800 text-sm mb-3 whitespace-nowrap">
+                    <div className="font-semibold text-gray-800 text-[13px] mb-2 whitespace-nowrap">
                       {t.profileFast}
                     </div>
                     <div className="text-[11.5px] text-gray-500 leading-tight">
@@ -1645,13 +1650,13 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                         },
                       }))
                     }
-                    className={`p-3 rounded-2xl border-2 text-left transition-all ${
+                    className={`px-3 py-2 rounded-2xl border-2 text-left transition-all ${
                       activeProfile() === "normal"
                         ? "border-green-500 bg-green-50"
                         : "border-gray-100 bg-white"
                     }`}
                   >
-                    <div className="font-semibold text-gray-800 text-sm mb-3 whitespace-nowrap">
+                    <div className="font-semibold text-gray-800 text-[13px] mb-2 whitespace-nowrap">
                       {t.profileNormal}
                     </div>
                     <div className="text-[11.5px] text-gray-500 leading-tight">
@@ -1671,13 +1676,13 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                         },
                       }))
                     }
-                    className={`p-3 rounded-2xl border-2 text-left transition-all ${
+                    className={`px-3 py-2 rounded-2xl border-2 text-left transition-all ${
                       activeProfile() === "empathetic"
                         ? "border-purple-500 bg-purple-50"
                         : "border-gray-100 bg-white"
                     }`}
                   >
-                    <div className="font-semibold text-gray-800 text-sm mb-3 whitespace-nowrap">
+                    <div className="font-semibold text-gray-800 text-[13px] mb-2 whitespace-nowrap">
                       {t.profileEmp}
                     </div>
                     <div className="text-[11.5px] text-gray-500 leading-tight">
@@ -1688,7 +1693,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
               </div>
 
               {/* Advanced */}
-              <div className="border-t pt-4">
+              <div className="pt-1">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">
                     {t.advancedLabel}
@@ -1699,7 +1704,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                 {/* Feature Toggles */}
                 <div className="mb-4 border border-gray-200 rounded-2xl bg-white">
                   <label className="flex items-center justify-between px-3 py-3 rounded-t-2xl cursor-pointer hover:bg-gray-50 gap-3">
-                    <span className="text-sm font-medium text-gray-700">
+                    <span className="text-[13px] font-medium text-gray-700">
                       {t.enableTTS}
                     </span>
                     <span
@@ -1758,7 +1763,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                     }`}
                   >
                     <div>
-                      <span className="text-sm font-medium text-gray-700 block">
+                      <span className="text-[13px] font-medium text-gray-700 block">
                         {t.enableEmotions}
                       </span>
                       {state.settings.sttModel === "browser" && (
@@ -1834,7 +1839,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                         }
                         disabled={!webSpeechSupport.stt}
                         aria-disabled={!webSpeechSupport.stt}
-                        className={`w-full py-1.5 rounded-md text-[13px] font-medium transition-all ${
+                        className={`w-full py-1.5 rounded-md text-[12px] font-medium transition-all ${
                           state.settings.sttModel === "browser"
                             ? "bg-white shadow text-blue-500"
                             : webSpeechSupport.stt ? "text-gray-500 cursor-pointer" : "text-gray-300 cursor-not-allowed"
@@ -1859,7 +1864,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                           settings: { ...prev.settings, sttModel: "whisper" },
                         }))
                       }
-                      className={`flex-1 py-1.5 rounded-md text-[13px] font-medium transition-all ${
+                      className={`flex-1 py-1.5 rounded-md text-[12px] font-medium transition-all ${
                         state.settings.sttModel === "whisper"
                           ? "bg-white shadow text-purple-600"
                           : "text-gray-500"
@@ -1894,7 +1899,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                         }
                         disabled={!webSpeechSupport.tts}
                         aria-disabled={!webSpeechSupport.tts}
-                        className={`w-full py-1.5 rounded-md text-[13px] font-medium transition-all ${
+                        className={`w-full py-1.5 rounded-md text-[12px] font-medium transition-all ${
                           state.settings.ttsModel === "browser"
                             ? "bg-white shadow text-blue-500"
                             : webSpeechSupport.tts ? "text-gray-500 cursor-pointer" : "text-gray-300 cursor-not-allowed"
@@ -1919,7 +1924,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                           settings: { ...prev.settings, ttsModel: "edge" },
                         }))
                       }
-                      className={`flex-1 py-1.5 rounded-md text-[13px] font-medium transition-all ${
+                      className={`flex-1 py-1.5 rounded-md text-[12px] font-medium transition-all ${
                         state.settings.ttsModel === "edge"
                           ? "bg-white shadow text-green-600"
                           : "text-gray-500"
@@ -1934,7 +1939,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                           settings: { ...prev.settings, ttsModel: "piper" },
                         }))
                       }
-                      className={`flex-1 py-1.5 rounded-md text-[13px] font-medium transition-all ${
+                      className={`flex-1 py-1.5 rounded-md text-[12px] font-medium transition-all ${
                         state.settings.ttsModel === "piper"
                           ? "bg-white shadow text-purple-600"
                           : "text-gray-500"
