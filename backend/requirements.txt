@@ -11,3 +11,4 @@ librosa
 google-genai
 ffmpeg-python
 numpy
+edge-tts

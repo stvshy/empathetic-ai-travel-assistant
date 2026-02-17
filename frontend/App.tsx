@@ -86,6 +86,7 @@ const TRANSLATIONS = {
       "Whisper wydłuża czas odpowiedzi i wymaga wciśnięcia przycisku, kiedy skończysz mówić (nie działa automatycznie)",
     piperWarning:
       "Piper wymaga przetworzenia na serwerze – głos asystenta usłyszysz ze znacznym opóźnieniem.",
+    edgeWarning: "Najwyższa jakość, optymalny czas odpowiedzi",
     webDesc: "Szybki, brak emocji",
     whisperDesc: "Wolniejszy, dokładniejszy",
     featuresLabel: "Funkcje",
@@ -96,11 +97,14 @@ const TRANSLATIONS = {
     modelWeb: "Web (Szybki)",
     modelPiper: "Piper (Wolny)",
     modelWhisper: "Whisper (Wolny)",
+    modelEdge: "Edge (Najlepszy)",
     whisperReq: "Wymaga modelu Whisper",
     profileFast: "Szybki ⚡",
-    profileFastDesc: "Przeglądarka • Bez Emocji",
+    profileFastDesc: "Bez Emocji",
+    profileNormal: "Normalny 👍",
+    profileNormalDesc: "Bez Emocji",
     profileEmp: "Empatyczny ❤️",
-    profileEmpDesc: "Whisper AI • Emocje",
+    profileEmpDesc: "Wykrywa Emocje",
     tapToPlayTTS: "Kliknij, aby odsłuchać odpowiedź",
     copyright: "Mateusz Staszków. Wszelkie prawa zastrzeżone.",
     webSttNotSupported: "ℹ️ Web Speech Recognition nie jest obsługiwany w tej przeglądarce",
@@ -127,6 +131,7 @@ const TRANSLATIONS = {
       "Whisper increases response time and requires you to press a button when you finish speaking (it doesn't work automatically)",
     piperWarning:
       "Piper requires processing on the server – you will hear the assistant's voice with a significant delay.",
+    edgeWarning: "Highest quality, optimal response time",
     webDesc: "Fast, no emotions",
     whisperDesc: "Slower, more accurate",
     featuresLabel: "Features",
@@ -138,11 +143,14 @@ const TRANSLATIONS = {
     modelWeb: "Web (Fast)",
     modelPiper: "Piper (Slow)",
     modelWhisper: "Whisper (Slow)",
+    modelEdge: "Edge (Best)",
     whisperReq: "Requires Whisper model",
     profileFast: "Fast ⚡",
-    profileFastDesc: "Browser • No Emotions",
+    profileFastDesc: "No Emotions",
+    profileNormal: "Normal 👍",
+    profileNormalDesc: "No Emotions",
     profileEmp: "Empathetic ❤️",
-    profileEmpDesc: "Whisper AI • Emotions",
+    profileEmpDesc: "Detects Emotions",
     tapToPlayTTS: "Tap to play the assistant reply",
     copyright: "Mateusz Staszków. All rights reserved.",
     webSttNotSupported: "ℹ️ Web Speech Recognition is not supported in this browser",
@@ -186,11 +194,11 @@ const App: React.FC = () => {
 
   // --- DOMYŚLNE USTAWIENIA NA PODSTAWIE OBSŁUGI PRZEGLĄDARKI ---
   const getDefaultSettings = (): Settings => ({
-    language: "en" as const,
+    language: "en" as const, 
     sttModel: webSpeechSupport.stt ? "browser" : "whisper",
-    ttsModel: webSpeechSupport.tts ? "browser" : "piper",
+    ttsModel: "edge", 
     enableEmotions: false,
-    enableTTS: webSpeechSupport.tts, // Automatycznie włącz TTS jeśli jest obsługiwany
+    enableTTS: true, 
   });
 
   const [state, setState] = useState<AppState>({
@@ -470,46 +478,42 @@ const App: React.FC = () => {
   };
 
   const speakText = async (text: string) => {
-    // Sprawdzamy ustawienia z Refa, a nie ze stanu (który może być nieaktualny w closure)
+    // Sprawdzamy ustawienia z Refa
     if (!settingsRef.current.enableTTS) return;
 
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
-    // Zatrzymaj poprzednie audio z Pipera jeśli jest
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     if (piperAudioRef.current) {
       piperAudioRef.current.pause();
       piperAudioRef.current = null;
     }
 
-    // Wyczyść markdown przed wysłaniem do TTS
     const cleanText = stripMarkdown(text);
+    const model = settingsRef.current.ttsModel; // Pobieramy model
 
-    // Jeśli wybrano Pipera, używamy backendu
-    if (settingsRef.current.ttsModel === "piper") {
+    // === ZMIANA: Obsługa PIPER LUB EDGE ===
+    if (model === "piper" || model === "edge") {
       try {
         const res = await fetch(`${API_URL}/tts`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ 
             text: cleanText,
-            language: settingsRef.current.language // Dodajemy aktualny język
+            language: settingsRef.current.language,
+            model: model // <--- Wysyłamy "piper" lub "edge"
           }), 
         });
 
         if (!res.ok) {
-          console.error("Piper TTS error:", await res.text());
+          console.error(`${model} TTS error:`, await res.text());
           return;
         }
 
         const audioBlob = await res.blob();
         const audioUrl = URL.createObjectURL(audioBlob);
         const audio = new Audio(audioUrl);
-        // iOS: wspomaga odtwarzanie inline
         (audio as any).playsInline = true;
         audio.setAttribute("playsinline", "true");
         
-        // Zapisz referencję do audio
         piperAudioRef.current = audio;
         
         audio.onended = () => {
@@ -522,12 +526,11 @@ const App: React.FC = () => {
           await audio.play();
           setPendingPiperPlayback(false);
         } catch (playErr) {
-          // Mobile często blokuje autoplay bez user-gesture.
-          console.warn("Piper audio play blocked:", playErr);
+          console.warn("Audio play blocked:", playErr);
           setPendingPiperPlayback(true);
         }
       } catch (err) {
-        console.error("Piper TTS failed:", err);
+        console.error("Backend TTS failed:", err);
       }
       return;
     }
@@ -626,17 +629,17 @@ const App: React.FC = () => {
   };
 
   const playPendingTts = async () => {
-    // Wywoływane tylko z kliknięcia (user-gesture)
     if (!settingsRef.current.enableTTS) return;
 
-    if (settingsRef.current.ttsModel === "piper") {
+    // ZMIANA: Jeśli model to NIE przeglądarka (czyli Edge lub Piper)
+    if (settingsRef.current.ttsModel !== "browser") {
       const audio = piperAudioRef.current;
       if (!audio) return;
       try {
         await audio.play();
         setPendingPiperPlayback(false);
       } catch (e) {
-        console.warn("Piper play still blocked:", e);
+        console.warn("Audio play still blocked:", e);
         setPendingPiperPlayback(true);
       }
       return;
@@ -668,14 +671,14 @@ const App: React.FC = () => {
 
       if (!settingsRef.current.enableTTS) return;
 
-      if (settingsRef.current.ttsModel === 'piper') {
+      // Jeśli model NIE jest przeglądarkowy (czyli Edge lub Piper)
+      if (settingsRef.current.ttsModel !== 'browser') {
         const audio = piperAudioRef.current;
         if (audio && pendingPiperPlayback) {
           audio.play().then(() => setPendingPiperPlayback(false)).catch(() => setPendingPiperPlayback(true));
         }
         return;
       }
-
       if (settingsRef.current.ttsModel === 'browser' && pendingTtsText) {
         speakText(pendingTtsText);
       }
@@ -1104,18 +1107,18 @@ const App: React.FC = () => {
   };
 
   // --- SETTINGS HELPERS ---
-  const activeProfile = (): "fast" | "empathetic" | "custom" => {
-    const { sttModel, ttsModel, enableEmotions, enableTTS } = state.settings;
-    if (
-      sttModel === "browser" &&
-      ttsModel === "browser" &&
-      !enableEmotions &&
-      !enableTTS
-    )
-      return "fast";
-    // Profil Empathetic: Whisper + Emocje ON
-    if (sttModel === "whisper" && ttsModel === "browser" && enableEmotions)
-      return "empathetic";
+  const activeProfile = (): "fast" | "normal" | "empathetic" | "custom" => {
+    const { sttModel, ttsModel, enableEmotions } = state.settings;
+    
+    // Fast: Browser STT + Browser TTS
+    if (sttModel === "browser" && ttsModel === "browser" && !enableEmotions) return "fast";
+    
+    // Normal: Browser STT + Edge TTS (Domyślny)
+    if (sttModel === "browser" && ttsModel === "edge" && !enableEmotions) return "normal";
+
+    // Empathetic: Whisper + Edge TTS + Emotions (Wcześniej było Piper, teraz Edge bo lepszy)
+    if (sttModel === "whisper" && ttsModel === "edge" && enableEmotions) return "empathetic";
+
     return "custom";
   };
 
@@ -1389,7 +1392,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
       {/* --- SETTINGS MODAL --- */}
       {state.showSettings && (
         <div className="absolute inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-white w-full sm:max-w-sm rounded-3xl p-4 sm:p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh] mx-auto">
+          <div className="bg-white w-full sm:max-w-md rounded-3xl p-4 sm:p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh] mx-auto">
             <div className="flex justify-between items-center mb-4 sm:mb-6">
               <h2 className="text-lg sm:text-xl font-bold text-gray-800">
                 {t.settingsTitle}
@@ -1461,7 +1464,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
                   {t.predefinedLabel}
                 </label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-2">
                   <button
                     onClick={() =>
                       setState((prev) => ({
@@ -1481,10 +1484,10 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                         : "border-gray-100 bg-white"
                     }`}
                   >
-                    <div className="font-bold text-gray-800 text-sm mb-1">
+                    <div className="font-bold text-gray-800 text-sm mb-3 whitespace-nowrap">
                       {t.profileFast}
                     </div>
-                    <div className="text-[10px] text-gray-500 leading-tight">
+                    <div className="text-[11.5px] text-gray-500 leading-tight">
                       {t.profileFastDesc}
                     </div>
                   </button>
@@ -1494,8 +1497,34 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                         ...prev,
                         settings: {
                           ...prev.settings,
+                          sttModel: webSpeechSupport.stt ? "browser" : "whisper",
+                          ttsModel: "edge",
+                          enableEmotions: false,
+                          enableTTS: true,
+                        },
+                      }))
+                    }
+                    className={`p-3 rounded-2xl border-2 text-left transition-all ${
+                      activeProfile() === "normal"
+                        ? "border-green-500 bg-green-50"
+                        : "border-gray-100 bg-white"
+                    }`}
+                  >
+                    <div className="font-bold text-gray-800 text-sm mb-3 whitespace-nowrap">
+                      {t.profileNormal}
+                    </div>
+                    <div className="text-[11.5px] text-gray-500 leading-tight">
+                      {t.profileNormalDesc}
+                    </div>
+                  </button>
+                  <button
+                    onClick={() =>
+                      setState((prev) => ({
+                        ...prev,
+                        settings: {
+                          ...prev.settings,
                           sttModel: "whisper",
-                          ttsModel: webSpeechSupport.tts ? "browser" : "piper",
+                          ttsModel: "edge", // Empathetic uses Edge now
                           enableEmotions: true,
                           enableTTS: true,
                         },
@@ -1507,10 +1536,10 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                         : "border-gray-100 bg-white"
                     }`}
                   >
-                    <div className="font-bold text-gray-800 text-sm mb-1">
+                    <div className="font-bold text-gray-800 text-sm mb-3 whitespace-nowrap">
                       {t.profileEmp}
                     </div>
-                    <div className="text-[10px] text-gray-500 leading-tight">
+                    <div className="text-[11.5px] text-gray-500 leading-tight">
                       {t.profileEmpDesc}
                     </div>
                   </button>
@@ -1532,7 +1561,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                     <span
                       className={`w-5 h-5 flex items-center justify-center rounded-full border transition-colors ${
                         state.settings.enableTTS
-                          ? "bg-green-500 border-green-500"
+                          ? "bg-gray-300 border-gray-300"
                           : "bg-white border-gray-300"
                       }`}
                     >
@@ -1735,6 +1764,21 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                       onClick={() =>
                         setState((prev) => ({
                           ...prev,
+                          settings: { ...prev.settings, ttsModel: "edge" },
+                        }))
+                      }
+                      className={`flex-1 py-1.5 rounded-md text-[13px] font-medium transition-all ${
+                        state.settings.ttsModel === "edge"
+                          ? "bg-white shadow text-green-600"
+                          : "text-gray-500"
+                      }`}
+                    >
+                      {t.modelEdge}
+                    </button>
+                    <button
+                      onClick={() =>
+                        setState((prev) => ({
+                          ...prev,
                           settings: { ...prev.settings, ttsModel: "piper" },
                         }))
                       }
@@ -1750,6 +1794,11 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                   {state.settings.ttsModel === "piper" && (
                     <p className="text-[10px] text-orange-500 mt-1 ml-1">
                       {t.piperWarning}
+                    </p>
+                  )}
+                  {state.settings.ttsModel === "edge" && (
+                    <p className="text-[10px] text-green-600 mt-1 ml-1">
+                      {t.edgeWarning}
                     </p>
                   )}
                 </div>

@@ -6,6 +6,8 @@ import tempfile
 import io
 import subprocess
 import json
+import asyncio      
+import edge_tts      
 from dotenv import load_dotenv
 import numpy as np
 import platform
@@ -42,6 +44,10 @@ if platform.system() == "Windows":
 else:
     PIPER_EXE = BASE / "piper" / "piper"
 # Definicja dostępnych modeli
+EDGE_VOICES = {
+    "pl": "pl-PL-MarekNeural",    
+     "en": "en-US-AvaMultilingualNeural" 
+}
 VOICE_MODELS = {
     "pl": {
         "model": BASE / "pl_PL-gosia-medium.onnx",
@@ -201,6 +207,11 @@ else:
 
 print("✅ Backend gotowy!")
 
+# Funkcja pomocnicza do generowania Edge TTS
+async def generate_edge_audio(text, voice, output_file):
+    communicate = edge_tts.Communicate(text, voice)
+    await communicate.save(output_file)
+    
 def generate_gemini_response(user_text, language="pl", emotion=None, history=None):
     # 1. Wybór instrukcji i dodanie emocji jako "meta-dane" (ukryte)
     current_instruction = SYSTEM_INSTRUCTIONS.get(language, SYSTEM_INSTRUCTIONS["pl"])
@@ -344,80 +355,96 @@ def health_check():
         "llm_status": "ready", 
         "model": "Gemini Flash Lite (Check skipped to save quota)"
     }), 200
-# --- ENDPOINT 4: TEXT-TO-SPEECH (Piper) ---
+
+# --- ENDPOINT 4: TEXT-TO-SPEECH (TTS) ---
 @app.route("/tts", methods=["POST"])
 def tts():
-    if not PIPER_EXE.exists():
-        logger.error(f"❌ Nie znaleziono Pipera: {PIPER_EXE}")
-        return jsonify({"error": "Brak pliku piper.exe na serwerze"}), 500
-
     data = request.json
     text = data.get("text")
-    lang = data.get("language", "pl")  # Domyślnie PL
+    lang = data.get("language", "pl")
+    # Domyślnie używamy 'edge', chyba że frontend poprosi o 'piper'
+    model_type = data.get("model", "edge") 
 
-    # --- DEBUG LOG ---
-    print(f"📢 TTS REQUEST: Tekst='{text[:20]}...', Język='{lang}'")
-    # -----------------
+    print(f"📢 TTS REQUEST: Tekst='{text[:20]}...', Język='{lang}', Model='{model_type}'")
 
     if not text:
         return jsonify({"error": "Brak tekstu"}), 400
-
-    # Wybór modelu
-    voice_data = VOICE_MODELS.get(lang, VOICE_MODELS["pl"])
-    model_path = voice_data["model"]
-    config_path = voice_data["config"]
-
-    if not model_path.exists():
-        logger.error(f"❌ Nie znaleziono pliku modelu: {model_path}")
-        # Fallback do polskiego, jeśli angielski nie istnieje
-        if lang != "pl" and VOICE_MODELS["pl"]["model"].exists():
-             logger.warning("⚠️ Używam modelu PL jako fallback!")
-             model_path = VOICE_MODELS["pl"]["model"]
-             config_path = VOICE_MODELS["pl"]["config"]
-        else:
-             return jsonify({"error": f"Brak modelu głosu"}), 500
 
     # Tworzymy plik tymczasowy
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_file:
         tmp_filename = tmp_file.name
 
-    cmd = [
-        str(PIPER_EXE),
-        "-m", str(model_path),
-        "-c", str(config_path),
-        "-f", str(tmp_filename),
-        "--sentence_silence", "0.2",
-        "--length_scale", "1.0"
-    ]
-
     try:
-        subprocess.run(
-            cmd,
-            input=text.encode("utf-8"),
-            capture_output=True,
-            check=True,
-            env=ENV
-        )
+        # === ŚCIEŻKA 1: EDGE TTS (Domyślna, Wysoka Jakość) ===
+        if model_type == "edge":
+            voice = EDGE_VOICES.get(lang, EDGE_VOICES["pl"])
+            # Uruchamiamy asynchroniczną funkcję w synchronicznym Flasku
+            asyncio.run(generate_edge_audio(text, voice, tmp_filename))
+            
+            # Odczytujemy wygenerowany plik do pamięci RAM
+            with open(tmp_filename, "rb") as f:
+                audio_data = io.BytesIO(f.read())
+            
+            # Sprzątamy plik z dysku
+            os.remove(tmp_filename)
+            
+            return send_file(audio_data, mimetype='audio/wav', as_attachment=False, download_name='tts.wav')
 
-        # NAPRAWA WinError 32: Wczytujemy do RAM i usuwamy plik OD RAZU
-        with open(tmp_filename, "rb") as f:
-            audio_data = io.BytesIO(f.read())
-        
-        # Teraz bezpiecznie usuwamy plik
-        os.remove(tmp_filename)
+        # === ŚCIEŻKA 2: PIPER TTS (Lokalny, Offline, Wolniejszy start) ===
+        elif model_type == "piper":
+            if not PIPER_EXE.exists():
+                logger.error(f"❌ Nie znaleziono Pipera: {PIPER_EXE}")
+                return jsonify({"error": "Brak pliku piper.exe na serwerze"}), 500
 
-        return send_file(audio_data, mimetype='audio/wav', as_attachment=False, download_name='tts.wav')
+            voice_data = VOICE_MODELS.get(lang, VOICE_MODELS["pl"])
+            model_path = voice_data["model"]
+            config_path = voice_data["config"]
+
+            if not model_path.exists():
+                # Fallback do polskiego modelu
+                if lang != "pl" and VOICE_MODELS["pl"]["model"].exists():
+                     model_path = VOICE_MODELS["pl"]["model"]
+                     config_path = VOICE_MODELS["pl"]["config"]
+                else:
+                     return jsonify({"error": f"Brak modelu głosu Piper"}), 500
+
+            cmd = [
+                str(PIPER_EXE),
+                "-m", str(model_path),
+                "-c", str(config_path),
+                "-f", str(tmp_filename),
+                "--sentence_silence", "0.2",
+                "--length_scale", "1.0"
+            ]
+            
+            subprocess.run(
+                cmd,
+                input=text.encode("utf-8"),
+                capture_output=True, # Ważne: ukrywa logi Pipera, chyba że jest błąd
+                check=True,
+                env=ENV
+            )
+
+            with open(tmp_filename, "rb") as f:
+                audio_data = io.BytesIO(f.read())
+            
+            os.remove(tmp_filename)
+            return send_file(audio_data, mimetype='audio/wav', as_attachment=False, download_name='tts.wav')
+
+        else:
+            return jsonify({"error": f"Nieznany model TTS: {model_type}"}), 400
 
     except subprocess.CalledProcessError as e:
         error_msg = e.stderr.decode("utf-8", errors="ignore") if e.stderr else str(e)
-        logger.error(f"Błąd Piper TTS: {error_msg}")
+        logger.error(f"Błąd procesu TTS: {error_msg}")
         if os.path.exists(tmp_filename): os.remove(tmp_filename)
         return jsonify({"error": "Błąd generowania TTS", "details": error_msg}), 500
+        
     except Exception as e:
         logger.error(f"Błąd ogólny TTS: {e}")
         if os.path.exists(tmp_filename): os.remove(tmp_filename)
         return jsonify({"error": str(e)}), 500
-    
+       
 if __name__ == '__main__':
     # Lokalnie (brak zmiennej PORT) użyje 5000.
     # Na Hugging Face (jest zmienna PORT) użyje 7860.

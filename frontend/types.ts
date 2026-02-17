@@ -8,14 +8,15 @@ export interface Message {
 }
 
 export type STTModel = "browser" | "whisper";
-export type TTSModel = "browser" | "piper";
+
+export type TTSModel = "browser" | "piper" | "edge";
 
 export interface Settings {
   language: "pl" | "en";
   sttModel: STTModel;
   ttsModel: TTSModel;
-  enableEmotions: boolean; // Nowe: Niezależny przełącznik emocji
-  enableTTS: boolean; // Nowe: Niezależny przełącznik czytania
+  enableEmotions: boolean;
+  enableTTS: boolean;
 }
 
 export interface AppState {
