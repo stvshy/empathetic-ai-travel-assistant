@@ -477,6 +477,7 @@ const currentAudioObjRef = useRef<HTMLAudioElement | null>(null); // Aktualny ob
   // Ref do aktualnie odtwarzanego audio z Pipera
   const piperAudioRef = useRef<HTMLAudioElement | null>(null);
   const ttsUnlockedRef = useRef(false);
+  const ttsAbortControllerRef = useRef<AbortController | null>(null);
   // Mobile WebSpeech: przechowuj bazowy tekst + najnowsze transkrypty (Android często zwraca kumulatywnie)
   const mobileBaseTextRef = useRef("");
   const mobileFinalRef = useRef("");
@@ -562,28 +563,34 @@ const currentAudioObjRef = useRef<HTMLAudioElement | null>(null); // Aktualny ob
       if ('speechSynthesis' in window) {
         window.speechSynthesis.cancel(); // <- To jest ten hamulec ręczny
       }
-      // Przerwij też Pipera
-      if (currentAudioObjRef.current) {
-    currentAudioObjRef.current.pause();
-    currentAudioObjRef.current = null;
-}
-audioQueueRef.current = []; // Wyczyść kolejkę oczekujących zdań
-isPlayingAudioRef.current = false;
+     if (ttsAbortControllerRef.current) {
+        ttsAbortControllerRef.current.abort();
+        ttsAbortControllerRef.current = null;
     }
-  }, [state.settings.enableTTS]); // Tablica zależności: uruchom to tylko gdy zmieni się enableTTS
+      if (currentAudioObjRef.current) {
+        currentAudioObjRef.current.pause();
+        currentAudioObjRef.current = null;
+      }
+      isPlayingAudioRef.current = false;
+      audioQueueRef.current = [];
+    }
+  }, [state.settings.enableTTS]);
 
   // Zmiana języka powinna natychmiast zatrzymać aktualne czytanie
   useEffect(() => {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
-    // Przerwij też Pipera
+     if (ttsAbortControllerRef.current) {
+        ttsAbortControllerRef.current.abort();
+        ttsAbortControllerRef.current = null;
+    }
     if (currentAudioObjRef.current) {
-    currentAudioObjRef.current.pause();
-    currentAudioObjRef.current = null;
-}
-audioQueueRef.current = []; // Wyczyść kolejkę oczekujących zdań
-isPlayingAudioRef.current = false;
+        currentAudioObjRef.current.pause();
+        currentAudioObjRef.current = null;
+    }
+    isPlayingAudioRef.current = false;
+    audioQueueRef.current = []; 
   }, [state.settings.language]);
 
   // --- FUNKCJA CZYSZCZĄCA MARKDOWN ---
@@ -683,95 +690,165 @@ const splitIntoSentences = (text: string): string[] => {
 };
 
 // 3. Funkcja odtwarzająca kolejkę (rekurencyjna)
- const processAudioQueue = async () => {
-    if (audioQueueRef.current.length === 0) {
-      isPlayingAudioRef.current = false;
-      return;
-    }
+//  const processAudioQueue = async () => {
+//     if (audioQueueRef.current.length === 0) {
+//       isPlayingAudioRef.current = false;
+//       return;
+//     }
 
-    isPlayingAudioRef.current = true;
-    const sentence = audioQueueRef.current.shift();
-    if (!sentence) return;
+//     isPlayingAudioRef.current = true;
+//     const sentence = audioQueueRef.current.shift();
+//     if (!sentence) return;
 
+//     try {
+//       const cleanText = stripMarkdown(sentence);
+//       if (!cleanText.trim()) {
+//         processAudioQueue();
+//         return;
+//       }
+
+//       // Używamy settingsRef.current, żeby mieć pewność co do aktualnego języka/modelu
+//       const currentSettings = settingsRef.current;
+
+//       const res = await fetch(`${API_URL}/tts`, {
+//         method: "POST",
+//         headers: { "Content-Type": "application/json" },
+//         body: JSON.stringify({
+//           text: cleanText,
+//           language: currentSettings.language,
+//           model: currentSettings.ttsModel,
+//         }),
+//       });
+
+//       if (!res.ok) throw new Error("TTS Error");
+
+//       const audioBlob = await res.blob();
+//       const audioUrl = URL.createObjectURL(audioBlob);
+//       const audio = new Audio(audioUrl);
+//       currentAudioObjRef.current = audio;
+
+//       await new Promise<void>((resolve) => {
+//         audio.onended = () => {
+//           URL.revokeObjectURL(audioUrl);
+//           resolve();
+//         };
+//         audio.onerror = () => resolve();
+//         audio.play().catch((e) => {
+//           console.warn("Auto-play blocked", e);
+//           resolve();
+//         });
+//       });
+
+//       processAudioQueue();
+//     } catch (e) {
+//       console.error("Błąd odtwarzania zdania:", e);
+//       processAudioQueue();
+//     }
+//   };
+// --- NOWA FUNKCJA POMOCNICZA: Pobieranie Audio ---
+  const fetchAudioBlob = async (text: string, signal: AbortSignal): Promise<string | null> => {
     try {
-      const cleanText = stripMarkdown(sentence);
-      if (!cleanText.trim()) {
-        processAudioQueue();
-        return;
-      }
-
-      // Używamy settingsRef.current, żeby mieć pewność co do aktualnego języka/modelu
-      const currentSettings = settingsRef.current;
+      const cleanText = stripMarkdown(text);
+      if (!cleanText.trim()) return null;
 
       const res = await fetch(`${API_URL}/tts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           text: cleanText,
-          language: currentSettings.language,
-          model: currentSettings.ttsModel,
+          language: settingsRef.current.language, // Używamy refa dla aktualności
+          model: settingsRef.current.ttsModel,
         }),
+        signal, // Ważne: pozwala anulować request
       });
 
       if (!res.ok) throw new Error("TTS Error");
-
-      const audioBlob = await res.blob();
-      const audioUrl = URL.createObjectURL(audioBlob);
-      const audio = new Audio(audioUrl);
-      currentAudioObjRef.current = audio;
-
-      await new Promise<void>((resolve) => {
-        audio.onended = () => {
-          URL.revokeObjectURL(audioUrl);
-          resolve();
-        };
-        audio.onerror = () => resolve();
-        audio.play().catch((e) => {
-          console.warn("Auto-play blocked", e);
-          resolve();
-        });
-      });
-
-      processAudioQueue();
-    } catch (e) {
-      console.error("Błąd odtwarzania zdania:", e);
-      processAudioQueue();
+      const blob = await res.blob();
+      return URL.createObjectURL(blob);
+    } catch (e: any) {
+      if (e.name === 'AbortError') {
+        console.log("Pobieranie TTS anulowane.");
+      } else {
+        console.error("Błąd pobierania TTS:", e);
+      }
+      return null;
     }
   };
-
+  
  const speakText = async (text: string) => {
-    if (!settingsRef.current.enableTTS) return; // Używajmy refa dla spójności
+    if (!settingsRef.current.enableTTS) return;
 
-    // 1. Definiujemy cleanText NA GÓRZE, żeby był dostępny wszędzie
-    const cleanText = stripMarkdown(text);
-
-    // Resetowanie starego audio
-    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    // 1. Reset i czyszczenie
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     if (currentAudioObjRef.current) {
       currentAudioObjRef.current.pause();
       currentAudioObjRef.current = null;
     }
-
-    // Czyścimy kolejkę
-    audioQueueRef.current = [];
     isPlayingAudioRef.current = false;
+    // Anuluj poprzednie pobierania w tle
+    if (ttsAbortControllerRef.current) {
+      ttsAbortControllerRef.current.abort(); // To zabija wszystkie aktywne requesty fetch
+      ttsAbortControllerRef.current = null;
+    }
+    // Tworzymy nowy kontroler dla tej serii zdań
+    ttsAbortControllerRef.current = new AbortController();
+    const currentSignal = ttsAbortControllerRef.current.signal;
 
+    isPlayingAudioRef.current = false;
     const model = settingsRef.current.ttsModel;
 
-    // --- LOGIKA DLA EDGE TTS (i Piper) ---
+    // --- ŚCIEŻKA 1: EDGE / PIPER (Streaming & Prefetching) ---
     if (model === "piper" || model === "edge") {
+      isPlayingAudioRef.current = true;
       const sentences = splitIntoSentences(text);
-      audioQueueRef.current = sentences;
 
-      if (!isPlayingAudioRef.current) {
-        processAudioQueue();
+      // MAGIA: Uruchamiamy pobieranie WSZYSTKICH zdań równolegle.
+      // Nie czekamy (await) tutaj na wynik, tylko zbieramy Obietnice (Promises).
+      // Przeglądarka sama obsłuży kolejkę requestów (zazwyczaj max 6 naraz).
+      const audioPromises = sentences.map(sentence => 
+        fetchAudioBlob(sentence, currentSignal)
+      );
+
+      // Pętla odtwarzania
+      for (let i = 0; i < audioPromises.length; i++) {
+        // Jeśli użytkownik wcisnął STOP w międzyczasie -> przerywamy pętlę
+        if (currentSignal.aborted) break;
+
+        try {
+          // Tutaj czekamy na konkretne zdanie. 
+          // Ponieważ requesty poszły równolegle, zdanie nr 2, 3, 4 prawdopodobnie
+          // pobrały się w czasie gdy słuchaliśmy zdania nr 1.
+          const audioUrl = await audioPromises[i]; 
+
+          if (audioUrl && !currentSignal.aborted) {
+            const audio = new Audio(audioUrl);
+            currentAudioObjRef.current = audio;
+
+            // Odtwarzamy i czekamy aż się skończy
+            await new Promise<void>((resolve) => {
+              audio.onended = () => resolve();
+              audio.onerror = () => resolve();
+              audio.play().catch(e => {
+                console.warn("Autoplay blocked or aborted", e);
+                resolve();
+              });
+            });
+            
+            // Sprzątamy pamięć po URL
+            URL.revokeObjectURL(audioUrl);
+          }
+        } catch (err) {
+          console.error("Błąd w pętli odtwarzania:", err);
+        }
       }
+      
+      isPlayingAudioRef.current = false;
       return;
     }
 
     // --- LOGIKA DLA PRZEGLĄDARKI (WEB SPEECH API) ---
     if ("SpeechSynthesisUtterance" in window && "speechSynthesis" in window) {
-      // TERAZ cleanText JEST JUŻ DOSTĘPNY!
+       const cleanText = stripMarkdown(text);
       const utterance = new SpeechSynthesisUtterance(cleanText);
       
       const isPolish = settingsRef.current.language === "pl";
@@ -931,17 +1008,21 @@ const splitIntoSentences = (text: string): string[] => {
   }, [pendingTtsText, pendingPiperPlayback]);
   // --- ACTIONS ---
   const handleNewChat = () => {
-    // Nowy czat przerywa ewentualne mówienie
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
-    // Przerwij też Pipera
+    
+    // NOWE CZYSZCZENIE:
+    if (ttsAbortControllerRef.current) {
+        ttsAbortControllerRef.current.abort();
+        ttsAbortControllerRef.current = null;
+    }
     if (currentAudioObjRef.current) {
-    currentAudioObjRef.current.pause();
-    currentAudioObjRef.current = null;
-}
-audioQueueRef.current = []; // Wyczyść kolejkę oczekujących zdań
-isPlayingAudioRef.current = false;
+        currentAudioObjRef.current.pause();
+        currentAudioObjRef.current = null;
+    }
+    isPlayingAudioRef.current = false;
+    audioQueueRef.current = [];
     const greeting =
       state.settings.language === "pl"
         ? "Cześć! Gdzie chciałbyś się wybrać?"
@@ -967,20 +1048,25 @@ isPlayingAudioRef.current = false;
     if (silenceTimerRef.current) {
      clearTimeout(silenceTimerRef.current);
      silenceTimerRef.current = null;
-  }
+    }
     if (!text.trim()) return;
 
-    // Przerwij czytanie natychmiast po wysłaniu wiadomości
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
-    // Przerwij też Pipera
+    
+    // NOWE CZYSZCZENIE:
+    if (ttsAbortControllerRef.current) {
+        ttsAbortControllerRef.current.abort();
+        ttsAbortControllerRef.current = null;
+    }
     if (currentAudioObjRef.current) {
-    currentAudioObjRef.current.pause();
-    currentAudioObjRef.current = null;
-}
-audioQueueRef.current = []; // Wyczyść kolejkę oczekujących zdań
-isPlayingAudioRef.current = false;
+        currentAudioObjRef.current.pause();
+        currentAudioObjRef.current = null;
+    }
+    isPlayingAudioRef.current = false;
+    audioQueueRef.current = [];
+
 
     // Mobile: odblokuj Web TTS tylko jeśli to faktycznie user-gesture
     if (fromUserGesture) {
@@ -1176,18 +1262,22 @@ isPlayingAudioRef.current = false;
   }, [state.settings.language, state.settings.sttModel]);
 
   // --- RECORDING ---
-   const startRecording = async () => {
-    // Przerwij czytanie, gdy użytkownik zaczyna mówić
+  const startRecording = async () => {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
-    // Przerwij też Pipera
+    
+    // NOWE CZYSZCZENIE:
+    if (ttsAbortControllerRef.current) {
+        ttsAbortControllerRef.current.abort();
+        ttsAbortControllerRef.current = null;
+    }
     if (currentAudioObjRef.current) {
-    currentAudioObjRef.current.pause();
-    currentAudioObjRef.current = null;
-}
-audioQueueRef.current = []; // Wyczyść kolejkę oczekujących zdań
-isPlayingAudioRef.current = false;
+        currentAudioObjRef.current.pause();
+        currentAudioObjRef.current = null;
+    }
+    audioQueueRef.current = []; 
+    isPlayingAudioRef.current = false;
     
     // Mobile: odblokuj Web TTS w user-gesture (klik mikrofonu)
     unlockWebTtsIfNeeded();
