@@ -118,9 +118,9 @@ const TRANSLATIONS = {
     helpAdvanced:
       "**Czytanie Wiadomości (TTS):** Włącza/wyłącza **odczytywanie odpowiedzi asystenta głosem**.\n\n**Wykrywanie Emocji:** Wymaga **Whisper**. Gdy aktywne, aplikacja **analizuje emocje** w głosie użytkownika i przekazuje je do LLM.",
     helpInputModel:
-      "**Web (Szybki):** **Najszybsze** rozpoznawanie mowy w przeglądarce, **bez wykrywania emocji**.\n\n**Whisper (Wolny):** Wymagany do **wykrywania emocji**, ale **wolniejszy** (długi czas odpowiedzi) i wymaga **ręcznego zatrzymania**. Nie zalecany do normalnego użytku.",
+      "**Web (Szybki):** **Najszybsze** rozpoznawanie mowy w przeglądarce, **bez wykrywania emocji**.\n\n**Whisper (Wolny):** Wymagany do **wykrywania emocji**, ale **wolniejszy** (długi czas odpowiedzi) i wymaga **ręcznego zatrzymania**. Niezalecany do normalnego użytku.",
     helpVoiceModel:
-      "**Web:** **Najszybszy** odczyt głosu, jakość zależna od przeglądarki i urządzenia.\n\n**Edge:** **Najlepsza jakość** z bardzo dobrym czasem odpowiedzi.\n\n**Piper:** Ma **największe opóźnienie**, nie zalecany do normalnego użytku, traktuj go raczej jako alternatywę.",
+      "**Web:** **Najszybszy** odczyt głosu, jakość zależna od przeglądarki i urządzenia. **Ważne:** W przeglądarkach takich jak **Opera**, poprawne czytanie po polsku wymaga zainstalowania **pakietu mowy języka polskiego** w ustawieniach systemu (analogicznie dla języka angielskiego - wersja US).\n\n**Edge:** **Najlepsza jakość** z dobrym czasem odpowiedzi.\n\n**Piper:** Ma **największe opóźnienie**, nie zalecany do normalnego użytku, traktuj go raczej jako alternatywę.",
   },
   en: {
     title: "Travel Assistant",
@@ -174,7 +174,7 @@ const TRANSLATIONS = {
     helpInputModel:
       "**Web (Fast):** **Fastest** browser-based speech recognition, **without emotion detection**.\n\n**Whisper (Slow):** Required for **emotion detection**, but **slower** (long response time) and requires **manual stop**. Not recommended for normal use.",
     helpVoiceModel:
-      "**Web:** **Fastest** voice playback, quality depends on browser and device.\n\n**Edge:** **Best quality** with very good response time.\n\n**Piper:** Has the **highest delay**, not recommended for normal use, treat it rather as an alternative.",
+      "**Web:** **Fastest** voice playback, quality depends on browser and device. **Note:** In browsers like **Opera**, correctly speaking English requires installing the **English (US) speech pack**, in your Windows system settings (and similarly for Polish).\n\n**Edge:** **Best quality** with good response time.\n\n**Piper:** Has the **highest delay**, not recommended for normal use, treat it rather as an alternative.",
   },
 };
 
@@ -848,36 +848,62 @@ const splitIntoSentences = (text: string): string[] => {
 
     // --- LOGIKA DLA PRZEGLĄDARKI (WEB SPEECH API) ---
     if ("SpeechSynthesisUtterance" in window && "speechSynthesis" in window) {
-       const cleanText = stripMarkdown(text);
+      const cleanText = stripMarkdown(text);
       const utterance = new SpeechSynthesisUtterance(cleanText);
       
       const isPolish = settingsRef.current.language === "pl";
+      // Ważne: Pełny kod locale (Opera tego potrzebuje)
       const targetLang = isPolish ? "pl-PL" : "en-US";
-
+      
       utterance.lang = targetLang;
 
-      if (availableVoices.length > 0) {
-        const langVoices = availableVoices.filter((v) =>
-          v.lang.includes(isPolish ? "pl" : "en")
+      // 1. Pobierz głosy (force refresh)
+      let voices = window.speechSynthesis.getVoices();
+      
+      // Jeśli lista jest pusta, spróbujmy jeszcze raz (fix dla niektórych wersji Chromium)
+      if (voices.length === 0) {
+          voices = availableVoices; 
+      }
+
+      if (voices.length > 0) {
+        // Szukamy głosów pasujących do kodu języka (np. "en" w "en-US")
+        const langCode = isPolish ? "pl" : "en";
+        const langVoices = voices.filter((v) => 
+          v.lang.replace('_', '-').toLowerCase().startsWith(langCode)
         );
 
-        let selectedVoice = langVoices.find(
-          (v) => v.name.includes("Natural") || v.name.includes("Online")
-        );
+        let selectedVoice = null;
 
-        if (!selectedVoice) {
-          selectedVoice = langVoices.find((v) => v.name.includes("Google"));
+        if (langVoices.length > 0) {
+          // A. Priorytet: Microsoft (Windows Native - Opera tego używa)
+          selectedVoice = langVoices.find(v => v.name.includes("Microsoft") && v.name.includes(isPolish ? "Paulina" : "David"));
+          
+          if (!selectedVoice) {
+             selectedVoice = langVoices.find(v => v.name.includes("Microsoft"));
+          }
+
+          // B. Priorytet: Google (Chrome/Android)
+          if (!selectedVoice) {
+            selectedVoice = langVoices.find(v => v.name.includes("Google"));
+          }
+
+          // C. Ostateczność: Pierwszy pasujący
+          if (!selectedVoice) {
+            selectedVoice = langVoices[0];
+          }
         }
 
-        if (!selectedVoice) {
-          selectedVoice = langVoices[0];
-        }
-
+        // PRZYPISANIE GŁOSU
         if (selectedVoice) {
           utterance.voice = selectedVoice;
+        } else {
+          // Jeśli nie znaleźliśmy głosu dla danego języka, NIE PRZYPISUJEMY utterance.voice = voices[0] (bo to będzie polski).
+          // Zostawiamy samo utterance.lang i liczymy na cud systemowy, albo po prostu system przeczyta to domyślnym.
+          console.warn(`⚠️ Brak zainstalowanego głosu dla języka: ${targetLang}`);
         }
       }
 
+      // Parametry dźwięku
       if (isPolish) {
         utterance.rate = 0.95;
         utterance.pitch = 1.0;
@@ -907,7 +933,8 @@ const splitIntoSentences = (text: string): string[] => {
       };
 
       window.speechSynthesis.speak(utterance);
-
+      
+      // Mobile fixes
       if (isMobile) {
         setTimeout(() => {
           if (window.speechSynthesis.paused) {
@@ -933,7 +960,6 @@ const splitIntoSentences = (text: string): string[] => {
       }
     }
   };
-
   const playPendingTts = async () => {
     if (!settingsRef.current.enableTTS) return;
 
