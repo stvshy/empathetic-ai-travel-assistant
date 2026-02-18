@@ -1304,13 +1304,17 @@ const App: React.FC = () => {
   const activeProfile = (): "fast" | "normal" | "empathetic" | "custom" => {
     const { sttModel, ttsModel, enableEmotions } = state.settings;
     
-    // Fast: Browser STT + Browser TTS
-    if (sttModel === "browser" && ttsModel === "browser" && !enableEmotions) return "fast";
-    
-    // Normal: Browser STT + Edge TTS (Domyślny)
-    if (sttModel === "browser" && ttsModel === "edge" && !enableEmotions) return "normal";
+    // Ustal oczekiwane modele w zależności od wsparcia przeglądarki
+    const expectedStt = webSpeechSupport.stt ? "browser" : "whisper";
+    const expectedFastTts = webSpeechSupport.tts ? "browser" : "piper";
 
-    // Empathetic: Whisper + Edge TTS + Emotions (Wcześniej było Piper, teraz Edge bo lepszy)
+    // Fast: Browser STT (lub Whisper jeśli brak) + Browser TTS (lub Piper jeśli brak) + Brak emocji
+    if (sttModel === expectedStt && ttsModel === expectedFastTts && !enableEmotions) return "fast";
+    
+    // Normal: Browser STT (lub Whisper jeśli brak) + Edge TTS (Domyślny) + Brak emocji
+    if (sttModel === expectedStt && ttsModel === "edge" && !enableEmotions) return "normal";
+
+    // Empathetic: Whisper + Edge TTS + Emotions
     if (sttModel === "whisper" && ttsModel === "edge" && enableEmotions) return "empathetic";
 
     return "custom";
