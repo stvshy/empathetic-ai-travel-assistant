@@ -1728,7 +1728,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
               </div>
 
               {/* Advanced */}
-              <div className="pt-1">
+              <div className="pt-0">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">
                     {t.advancedLabel}
@@ -1737,21 +1737,21 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                 </div>
 
                 {/* Feature Toggles */}
-                <div className="mb-4 border border-gray-200 rounded-2xl bg-white">
+                <div className="mb-6 border border-gray-200 rounded-2xl bg-white">
                   <label className="flex items-center justify-between px-3 py-2 rounded-t-2xl cursor-pointer hover:bg-gray-50 gap-3">
                     <span className="text-[12px] font-medium text-gray-700">
                       {t.enableTTS}
                     </span>
                     <span
-                      className={`w-5 h-5 flex items-center justify-center rounded-full border transition-colors ${
+                      className={`w-4 h-4 flex items-center justify-center rounded-full border transition-colors ${
                         state.settings.enableTTS
-                          ? "bg-gray-300 border-gray-300"
+                          ? "bg-gray-500 border-gray-500"
                           : "bg-white border-gray-300"
                       }`}
                     >
                       <svg
                         viewBox="0 0 16 16"
-                        className={`w-3.5 h-3.5 ${
+                        className={`w-3 h-3 ${
                           state.settings.enableTTS
                             ? "text-white"
                             : "text-transparent"
@@ -1808,7 +1808,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                       )}
                     </div>
                     <span
-                      className={`w-5 h-5 flex items-center justify-center rounded-full border transition-colors ${
+                      className={`w-4 h-4 flex items-center justify-center rounded-full border transition-colors ${
                         state.settings.enableEmotions
                           ? "bg-purple-600 border-purple-600"
                           : "bg-white border-gray-300"
@@ -1816,7 +1816,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                     >
                       <svg
                         viewBox="0 0 16 16"
-                        className={`w-3.5 h-3.5 ${
+                        className={`w-3 h-3 ${
                           state.settings.enableEmotions
                             ? "text-white"
                             : "text-transparent"
@@ -1852,9 +1852,9 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                 </div>
 
                 {/* STT Select */}
-                <div className="mb-3">
+                <div className="mb-5">
                   <div className="flex items-center gap-2 mb-1">
-                    <label className="text-[13px] text-gray-500 font-semibold block">
+                    <label className="text-[12px] text-gray-500 font-semibold block">
                       {t.inputModelLabel}
                     </label>
                     <HelpTooltip content={t.helpInputModel} ariaLabel={`${t.inputModelLabel} help`} />
@@ -1918,7 +1918,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                 {/* TTS Select */}
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <label className="text-[13px] text-gray-500 font-semibold block">
+                    <label className="text-[12px] text-gray-500 font-semibold block">
                       {t.voiceModelLabel}
                     </label>
                     <HelpTooltip content={t.helpVoiceModel} ariaLabel={`${t.voiceModelLabel} help`} placement="top" />
