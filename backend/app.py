@@ -108,6 +108,7 @@ SYSTEM_INSTRUCTIONS = {
     ZASADY TECHNICZNE:
     - Nie generuj od razu planu na cały wyjazd. Planuj etapami.
     - UŻYWAJ Markdowna (pogrubienia **kluczowych nazw**, listy punktowane dla opcji, linków).
+    -Jak już raz sie przywitałeś to nie witaj się więcej, każdą wiadomość rozpoczynaj w inny sposób adekwatnie do ostatniej wiadomości użytkownika
     
     !!! ABSOLUTNY ZAKAZ !!!
     NIGDY, POD ŻADNYM POZOREM nie pisz w swojej odpowiedzi:
@@ -153,7 +154,8 @@ SYSTEM_INSTRUCTIONS = {
     TECHNICAL RULES:
     - Do not generate a plan for the whole trip immediately. Plan in stages.
     - USE Markdown (bold **key names**, bullet lists for options, links).
-    
+    -Once you have said hello, do not say hello again. Start each message in a different way, appropriate to the user's last message.
+
     !!! ABSOLUTE PROHIBITION !!!
     NEVER, UNDER ANY CIRCUMSTANCES write in your response:
     - Words: "SYSTEM INFO", "[SYSTEM", "META-DATA", "Detected Emotion"
@@ -384,7 +386,7 @@ def tts():
             audio_data = asyncio.run(generate_edge_audio_memory(text, voice))
             return send_file(audio_data, mimetype='audio/mp3', as_attachment=False, download_name='tts.mp3')
         
-        # === ŚCIEŻKA 2: PIPER TTS (Lokalny, Plikowy) ===
+       # === ŚCIEŻKA 2: PIPER TTS (Lokalny, Plikowy) ===
         elif model_type == "piper":
             if not PIPER_EXE.exists():
                 logger.error(f"❌ Nie znaleziono Pipera: {PIPER_EXE}")
