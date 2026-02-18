@@ -22,6 +22,7 @@ except ImportError:
 from google import genai
 from google.genai import types
 from pathlib import Path
+
 # --- BIBLIOTEKI DO AUDIO ---
 import whisper
 from transformers import pipeline
@@ -36,13 +37,16 @@ CORS(app, supports_credentials=True)
 # --- KONFIGURACJA GEMINI ---
 API_KEY = os.getenv("GEMINI_API_KEY")
 client = genai.Client(api_key=API_KEY)
+
 # --- KONFIGURACJA PIPER TTS (Nowe) ---
 BASE = Path(__file__).resolve().parent
+
 # Upewnij się, że piper.exe jest w folderze 'piper_binary' wewnątrz folderu backend
 if platform.system() == "Windows":
     PIPER_EXE = BASE / "piper_binary" / "piper.exe"
 else:
     PIPER_EXE = BASE / "piper" / "piper"
+
 # Definicja dostępnych modeli
 EDGE_VOICES = {
     "pl": "pl-PL-MarekNeural",    
@@ -63,6 +67,7 @@ VOICE_MODELS = {
 ENV = os.environ.copy()
 ENV["OMP_NUM_THREADS"] = "2"
 ENV["MKL_NUM_THREADS"] = "2"
+
 # --- SYSTEM PROMPTS (WIELOJĘZYCZNE) ---
 SYSTEM_INSTRUCTIONS = {
     "pl": """
@@ -206,7 +211,6 @@ if platform.system() == "Windows":
 else:
     print("🐧 Wykryto środowisko Linux (Chmura) - Pomijam 'Ghost Run' dla szybszego startu.")
 # --- KONIEC WARM-UP ---
-
 print("✅ Backend gotowy!")
 
 # Funkcja pomocnicza do generowania Edge TTS

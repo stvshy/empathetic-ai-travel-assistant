@@ -1,12 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Message, AppState, Settings } from "./types";
 import ChatBubble from "./components/ChatBubble";
-// @ts-ignore
 import { hyphenateHTMLSync as hyphenatePl } from 'hyphen/pl';
-// @ts-ignore
 import { hyphenateHTMLSync as hyphenateEn } from 'hyphen/en';
 
-// --- LEPSZE WYKRYWANIE URZĄDZENIA ---
+// --- WYKRYWANIE URZĄDZENIA ---
 const getIsMobile = () => {
   if (typeof window === "undefined") return false;
   const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
@@ -67,6 +65,7 @@ const checkWebSpeechSupport = () => {
 };
 
 const webSpeechSupport = checkWebSpeechSupport();
+
 // --- SŁOWNIK TŁUMACZEŃ ---
 const TRANSLATIONS = {
   pl: {
@@ -239,48 +238,48 @@ const HelpTooltip: React.FC<{
   const [boundary, setBoundary] = useState<HTMLElement | null>(null);
   const modalSidePadding = 18;
 
-  // Detect language based on content
+  // Wykrywanie języka na podstawie treści (jeśli nie podano jako props) 
   const isPolish = content.includes('Szybki') || content.includes('Empatyczny') || content.includes('Wykrywanie') || content.includes('Czytanie');
   const lang = propLang || (isPolish ? 'pl' : 'en'); // Use prop if available
 
-  // Convert Markdown bold (**text**) to HTML <strong> and colorize titles
+  // Funkcja formatująca treść z markdownem, kolorami i dzieleniem wyrazów
   const formatContent = (text: string) => {
-    // First apply bold formatting
+    // Najpierw formatujemy pogrubienia
     let formatted = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
     
-    // Then colorize specific titles (without colons)
+    // Następnie dodajemy kolory do tytułów (po formatowaniu pogrubień, aby nie zakłócać tagów)
     const colorMap: { [key: string]: string } = {
-      // Profile titles
+      // Tytuły profili
       'Szybki': 'rgb(59, 130, 246)', // blue-500
       'Fast': 'rgb(59, 130, 246)',
       'Normalny': 'rgb(34, 197, 94)', // green-500
       'Normal': 'rgb(34, 197, 94)',
       'Empatyczny': 'rgb(168, 85, 247)', // purple-500
       'Empathetic': 'rgb(168, 85, 247)',
-      // Feature titles
+      // Tytuły funkcji
       'Czytanie Wiadomości (TTS)': 'rgb(59, 130, 246)',
       'Read Messages (TTS)': 'rgb(59, 130, 246)',
       'Wykrywanie Emocji': 'rgb(168, 85, 247)',
       'Emotion Detection': 'rgb(168, 85, 247)',
-      // STT Model titles
+      // Tytuły modeli STT
       'Web (Szybki)': 'rgb(59, 130, 246)',
       'Web (Fast)': 'rgb(59, 130, 246)',
       'Whisper (Wolny)': 'rgb(168, 85, 247)',
       'Whisper (Slow)': 'rgb(168, 85, 247)',
-      // TTS Model titles
+      // Tytuły modeli TTS
       'Web': 'rgb(59, 130, 246)',
       'Edge': 'rgb(34, 197, 94)',
       'Piper': 'rgb(168, 85, 247)',
     };
     
-    // Apply colors to titles (match only titles at word boundaries before colon)
+    // Dodajemy kolory do tytułów, dopasowując je nawet jeśli są pogrubione
     Object.entries(colorMap).forEach(([title, color]) => {
-      // Match title followed by colon, but don't include the colon in the color
+      // Tworzymy regex, który dopasuje tytuł niezależnie od tego, czy jest pogrubiony czy nie
       const regex = new RegExp(`(<strong>)?${title.replace(/[()]/g, '\\$&')}(?=:)(</strong>)?`, 'g');
       formatted = formatted.replace(regex, `<span style="color: ${color}; font-weight: 600;">${title}</span>`);
     });
 
-    // Apply hyphenation
+    // Na koniec dodajemy dzielenie wyrazów (hyphenation) do całego tekstu, ale tylko dla języka polskiego i angielskiego
     const hyphenator = lang === 'pl' ? hyphenatePl : hyphenateEn;
     if (hyphenator) {
       formatted = hyphenator(formatted);
@@ -291,7 +290,7 @@ const HelpTooltip: React.FC<{
 
   useEffect(() => {
     if (isOpen) {
-       // Find the modal content when opening
+       // Ustawiamy boundary na element modala, aby tooltip nie wychodził poza jego obszar
        const modal = document.querySelector('.settings-modal-content') as HTMLElement;
        setBoundary(modal);
     }
@@ -300,7 +299,7 @@ const HelpTooltip: React.FC<{
   useEffect(() => {
     onOpenChange?.(tooltipId, isOpen);
     return () => {
-      // Ensure overlay is cleared if tooltip unmounts while open
+      // Zamykamy tooltip przy odmontowaniu komponentu, aby uniknąć wiszących tooltipów
       onOpenChange?.(tooltipId, false);
     };
   }, [isOpen, onOpenChange, tooltipId]);
@@ -409,6 +408,7 @@ const currentAudioObjRef = useRef<HTMLAudioElement | null>(null); // Aktualny ob
       return prev === id ? null : prev;
     });
   };
+
   // --- DOMYŚLNE USTAWIENIA NA PODSTAWIE OBSŁUGI PRZEGLĄDARKI ---
   const getDefaultSettings = (): Settings => ({
     language: "en" as const, 
@@ -529,6 +529,7 @@ const currentAudioObjRef = useRef<HTMLAudioElement | null>(null); // Aktualny ob
     const interval = setInterval(checkConnection, 30000);
     return () => clearInterval(interval);
   }, []);
+
   // Initial Greeting + Reset historii TYLKO gdy zmieni się język
   useEffect(() => {
     const greeting =
@@ -572,7 +573,7 @@ const currentAudioObjRef = useRef<HTMLAudioElement | null>(null); // Aktualny ob
     }
   }, [state.settings.language]);
 
-  // Scroll to bottom
+  // Automatyczne scrollowanie do dołu czatu przy nowych wiadomościach, zmianie statusu przetwarzania lub interim transcript (ważne dla mobile)
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [state.messages, state.isProcessing, interimTranscript]);
@@ -582,7 +583,7 @@ const currentAudioObjRef = useRef<HTMLAudioElement | null>(null); // Aktualny ob
     if (!state.settings.enableTTS) {
       console.log("TTS wyłączony - przerywam mówienie.");
       if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel(); // <- To jest ten hamulec ręczny
+        window.speechSynthesis.cancel(); // Hamulec ręczny
       }
      if (ttsAbortControllerRef.current) {
         ttsAbortControllerRef.current.abort();
@@ -647,13 +648,13 @@ const currentAudioObjRef = useRef<HTMLAudioElement | null>(null); // Aktualny ob
       mobileTtsKickIntervalRef.current = null;
     }
 
-    // Chromium/Opera mobile bug: speech can get "stuck" unless periodically resumed.
+    // Na niektórych urządzeniach mobilnych, Web TTS może się "zawiesić" po dłuższym czasie bez użycia. Ten "kick" co 250ms pomaga utrzymać go aktywnym podczas odtwarzania dłuższych odpowiedzi.
     mobileTtsKickIntervalRef.current = window.setInterval(() => {
       try {
-        // resume() is idempotent; calling it repeatedly is safe.
+        // Jeśli synteza jest wstrzymana, wznow ją. To pomaga na urządzeniach, które mają agresywne zarządzanie energią.
         window.speechSynthesis.resume();
       } catch {
-        // ignore
+        // Nie blokuj - samo wywołanie bywa wystarczające na części przeglądarek, a na innych może rzucać błędy, które możemy ignorować.
       }
     }, 250);
   };
@@ -693,7 +694,7 @@ const currentAudioObjRef = useRef<HTMLAudioElement | null>(null); // Aktualny ob
       if (window.speechSynthesis.paused) window.speechSynthesis.resume();
       window.speechSynthesis.speak(u);
 
-      // Nie anulujemy natychmiast (to było głównym powodem braku efektu).
+      // Nie anulujemy natychmiast.
       // Jeśli platforma i tak utnie, ustawiamy unlock po chwili.
       setTimeout(() => {
         ttsUnlockedRef.current = true;
@@ -710,62 +711,6 @@ const splitIntoSentences = (text: string): string[] => {
     return Array.from(segments).map(s => s.segment).filter(s => s.trim().length > 0);
 };
 
-// 3. Funkcja odtwarzająca kolejkę (rekurencyjna)
-//  const processAudioQueue = async () => {
-//     if (audioQueueRef.current.length === 0) {
-//       isPlayingAudioRef.current = false;
-//       return;
-//     }
-
-//     isPlayingAudioRef.current = true;
-//     const sentence = audioQueueRef.current.shift();
-//     if (!sentence) return;
-
-//     try {
-//       const cleanText = stripMarkdown(sentence);
-//       if (!cleanText.trim()) {
-//         processAudioQueue();
-//         return;
-//       }
-
-//       // Używamy settingsRef.current, żeby mieć pewność co do aktualnego języka/modelu
-//       const currentSettings = settingsRef.current;
-
-//       const res = await fetch(`${API_URL}/tts`, {
-//         method: "POST",
-//         headers: { "Content-Type": "application/json" },
-//         body: JSON.stringify({
-//           text: cleanText,
-//           language: currentSettings.language,
-//           model: currentSettings.ttsModel,
-//         }),
-//       });
-
-//       if (!res.ok) throw new Error("TTS Error");
-
-//       const audioBlob = await res.blob();
-//       const audioUrl = URL.createObjectURL(audioBlob);
-//       const audio = new Audio(audioUrl);
-//       currentAudioObjRef.current = audio;
-
-//       await new Promise<void>((resolve) => {
-//         audio.onended = () => {
-//           URL.revokeObjectURL(audioUrl);
-//           resolve();
-//         };
-//         audio.onerror = () => resolve();
-//         audio.play().catch((e) => {
-//           console.warn("Auto-play blocked", e);
-//           resolve();
-//         });
-//       });
-
-//       processAudioQueue();
-//     } catch (e) {
-//       console.error("Błąd odtwarzania zdania:", e);
-//       processAudioQueue();
-//     }
-//   };
 // --- NOWA FUNKCJA POMOCNICZA: Pobieranie Audio ---
   const fetchAudioBlob = async (text: string, signal: AbortSignal): Promise<string | null> => {
     try {
@@ -823,7 +768,7 @@ const splitIntoSentences = (text: string): string[] => {
       isPlayingAudioRef.current = true;
       const sentences = splitIntoSentences(text);
 
-      // MAGIA: Uruchamiamy pobieranie WSZYSTKICH zdań równolegle.
+      // Uruchamiamy pobieranie WSZYSTKICH zdań równolegle.
       // Nie czekamy (await) tutaj na wynik, tylko zbieramy Obietnice (Promises).
       // Przeglądarka sama obsłuży kolejkę requestów (zazwyczaj max 6 naraz).
       const audioPromises = sentences.map(sentence => 
@@ -918,9 +863,14 @@ const splitIntoSentences = (text: string): string[] => {
         if (selectedVoice) {
           utterance.voice = selectedVoice;
         } else {
-          // Jeśli nie znaleźliśmy głosu dla danego języka, NIE PRZYPISUJEMY utterance.voice = voices[0] (bo to będzie polski).
-          // Zostawiamy samo utterance.lang i liczymy na cud systemowy, albo po prostu system przeczyta to domyślnym.
-          console.warn(`⚠️ Brak zainstalowanego głosu dla języka: ${targetLang}`);
+          // Jeśli nie znaleźliśmy głosu dla danego języka, ustawiamy pierwszy dostępny głos.
+          const voices = window.speechSynthesis.getVoices();
+          if (voices.length > 0) {
+            utterance.voice = voices[0]; // Ustaw pierwszy dostępny głos
+            console.warn(`⚠️ Brak zainstalowanego głosu dla języka: ${targetLang}. Używam pierwszego dostępnego głosu.`);
+          } else {
+            console.warn(`⚠️ Brak dostępnych głosów.`);
+          }
         }
       }
 
@@ -955,7 +905,7 @@ const splitIntoSentences = (text: string): string[] => {
 
       window.speechSynthesis.speak(utterance);
       
-      // Mobile fixes
+      // Na mobile często zdarza się, że TTS nie startuje od razu mimo user-gesture. Ten timeout to obejście, które próbuje wznowić syntezę po chwili, a jeśli nadal nie zaczęła się, ustawia pendingTtsText, co wyzwala ponowną próbę odtwarzania w useEffect.
       if (isMobile) {
         setTimeout(() => {
           if (window.speechSynthesis.paused) {
@@ -1019,7 +969,7 @@ const splitIntoSentences = (text: string): string[] => {
           window.speechSynthesis.resume();
         }
       } catch {
-        // ignore
+        // ignoruj
       }
 
       if (!settingsRef.current.enableTTS) return;
@@ -1053,13 +1003,12 @@ const splitIntoSentences = (text: string): string[] => {
       window.removeEventListener('pageshow', tryResume);
     };
   }, [pendingTtsText, pendingPiperPlayback]);
-  // --- ACTIONS ---
+  // --- AKCJE ---
   const handleNewChat = () => {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
     
-    // NOWE CZYSZCZENIE:
     if (ttsAbortControllerRef.current) {
         ttsAbortControllerRef.current.abort();
         ttsAbortControllerRef.current = null;
@@ -1102,7 +1051,6 @@ const splitIntoSentences = (text: string): string[] => {
       window.speechSynthesis.cancel();
     }
     
-    // NOWE CZYSZCZENIE:
     if (ttsAbortControllerRef.current) {
         ttsAbortControllerRef.current.abort();
         ttsAbortControllerRef.current = null;
@@ -1206,7 +1154,7 @@ const splitIntoSentences = (text: string): string[] => {
       recognition.interimResults = true;
 
       recognition.onresult = (event: any) => {
-        // --- LOGIKA DLA TELEFONU (NOWA - naprawia powielanie) ---
+        // --- LOGIKA DLA TELEFONU (eliminująca powielanie) ---
         if (isMobile) {
             const normalize = (s: string) => s.replace(/\s+/g, " ").trim();
             const mergeFinalAndInterim = (finalText: string, interimText: string) => {
@@ -1261,7 +1209,7 @@ const splitIntoSentences = (text: string): string[] => {
             }, 2000);
             
         } else {
-            // --- LOGIKA DLA KOMPUTERA (STARA - szybka reakcja) ---
+            // --- LOGIKA DLA KOMPUTERA ---
             let finalChunk = "";
             let interimChunk = "";
 
@@ -1308,7 +1256,7 @@ const splitIntoSentences = (text: string): string[] => {
     }
   }, [state.settings.language, state.settings.sttModel]);
 
-  // --- RECORDING ---
+  // --- NAGRYWANIE ---
   const startRecording = async () => {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
@@ -1389,6 +1337,7 @@ const splitIntoSentences = (text: string): string[] => {
      clearTimeout(silenceTimerRef.current);
      silenceTimerRef.current = null;
   }
+
   // Jeśli jest jakiś tekst w polu na mobile i klikniesz stop -> wyślij go
   if (isMobile && state.settings.sttModel === "browser") {
     const normalize = (s: string) => s.replace(/\s+/g, " ").trim();
@@ -1475,7 +1424,7 @@ const splitIntoSentences = (text: string): string[] => {
     }
   };
 
-  // --- SETTINGS HELPERS ---
+  // --- PROFILE ---
   const activeProfile = (): "fast" | "normal" | "empathetic" | "custom" => {
     const { sttModel, ttsModel, enableEmotions } = state.settings;
     
@@ -1539,7 +1488,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
         </div>
 
         <div className="flex items-center gap-1 flex-shrink-0">
-          {/* Quick Toggles (Visible outside settings) */}
+          {/* Szybkie ustawienia */}
           <button
             onClick={() => {
               if (state.settings.enableTTS && 'speechSynthesis' in window) window.speechSynthesis.cancel();
@@ -1606,7 +1555,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
           {/* Divider */}
           <div className="h-5 border-l border-gray-200"></div>
 
-          {/* New Chat (Clean Icon) */}
+          {/* Nowy chat */}
           <button
             onClick={handleNewChat}
             className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center text-gray-400 hover:text-blue-600 transition-colors text-base sm:text-xl"
@@ -1615,7 +1564,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
             <i className="fas fa-plus"></i>
           </button>
 
-          {/* Settings */}
+          {/* Ustawienia */}
           <button
             onClick={() =>
               setState((prev) => ({ ...prev, showSettings: true }))
@@ -1633,23 +1582,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
           <ChatBubble key={msg.id} message={msg} />
         ))}
 
-        {/* {state.isRecording && state.settings.sttModel === "browser" && isMobile && (
-           <div className="flex justify-center mb-2 animate-pulse">
-              <div className="text-sm font-medium text-gray-700 bg-white/95 px-4 py-3 rounded-2xl shadow-md border border-blue-200 max-w-[90%] text-center">
-                 {inputText || interimTranscript ? (
-                     <span>
-                        {inputText} 
-                        {interimTranscript && <span className="text-gray-400 ml-1">{interimTranscript}</span>}
-                     </span>
-                 ) : (
-                     <span className="text-gray-500 italic">{t.mobileListeningHint}</span>
-                 )}
-              </div>
-           </div>
-        )} */}
-
-
-{/* UNIWERSALNY SZARY DYMEK (Styl PC, Logika hybrydowa) */}
+        {/* UNIWERSALNY SZARY DYMEK (Styl PC, Logika hybrydowa) */}
         {(interimTranscript || (isMobile && state.isRecording && inputText)) && (
           <div className="flex justify-end mb-4">
             <div className="max-w-[80%] rounded-2xl px-4 py-3 bg-gray-100 text-gray-500 rounded-tr-none border border-gray-200 opacity-80 italic">
@@ -1762,7 +1695,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
           &copy; {new Date().getFullYear()} {t.copyright}
         </div>
       </footer>
-      {/* --- SETTINGS MODAL --- */}
+      {/* --- MODAL USTAWIEŃ --- */}
       {state.showSettings && (
         <div className="absolute inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
           <div className="settings-modal-content bg-white w-full sm:max-w-md rounded-3xl p-4 sm:p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh] mx-auto relative">
@@ -1910,7 +1843,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                         settings: {
                           ...prev.settings,
                           sttModel: "whisper",
-                          ttsModel: "edge", // Empathetic uses Edge now
+                          ttsModel: "edge", // TTS Edge jest bardziej ekspresyjny, więc lepiej pasuje do profilu empatycznego
                           enableEmotions: true,
                           enableTTS: true,
                         },
@@ -1932,7 +1865,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                 </div>
               </div>
 
-              {/* Advanced */}
+              {/* Zaawansowane */}
               <div className="pt-0">
                 <div className={`flex items-center gap-2 mb-3 ${openHelpTooltipId === "advanced" ? "relative z-20" : ""}`}>
                   <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">
@@ -1947,7 +1880,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                   />
                 </div>
 
-                {/* Feature Toggles */}
+                {/*  TTS i Emocje - checkboxy */}
                 <div className="mb-6 border border-gray-200 rounded-2xl bg-white">
                   <label className="flex items-center justify-between px-3 py-3 rounded-t-2xl cursor-pointer hover:bg-gray-50 gap-3">
                     <span className="text-[12px] font-medium text-gray-700">
@@ -2062,7 +1995,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                   </label>
                 </div>
 
-                {/* STT Select */}
+                {/* Wybór STT */}
                 <div className={`mb-5 ${openHelpTooltipId === "sttModel" ? "relative z-20" : ""}`}>
                   <div className={`flex items-center gap-2 mb-1 ${openHelpTooltipId === "sttModel" ? "relative z-20" : ""}`}>
                     <label className="text-[12px] text-gray-500 font-semibold block">
@@ -2151,7 +2084,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                   )}
                 </div>
 
-                {/* TTS Select */}
+                {/* Wybór TTS */}
                 <div className={`${openHelpTooltipId === "ttsModel" || hoverTooltipId === "tts" ? "relative z-20" : ""}`}>
                   <div className="flex items-center gap-2 mb-1">
                     <label className="text-[12px] text-gray-500 font-semibold block">
