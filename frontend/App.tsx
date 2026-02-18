@@ -232,9 +232,43 @@ const HelpTooltip: React.FC<{
   const [boundary, setBoundary] = useState<HTMLElement | null>(null);
   const modalSidePadding = 18;
 
-  // Convert Markdown bold (**text**) to HTML <strong>
+  // Convert Markdown bold (**text**) to HTML <strong> and colorize titles
   const formatContent = (text: string) => {
-    return text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    // First apply bold formatting
+    let formatted = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    
+    // Then colorize specific titles
+    const colorMap: { [key: string]: string } = {
+      // Profile titles
+      'Szybki:': 'rgb(59, 130, 246)', // blue-500
+      'Fast:': 'rgb(59, 130, 246)',
+      'Normalny:': 'rgb(34, 197, 94)', // green-500
+      'Normal:': 'rgb(34, 197, 94)',
+      'Empatyczny:': 'rgb(168, 85, 247)', // purple-500
+      'Empathetic:': 'rgb(168, 85, 247)',
+      // Feature titles
+      'Czytanie Wiadomości (TTS):': 'rgb(59, 130, 246)',
+      'Read Messages (TTS):': 'rgb(59, 130, 246)',
+      'Wykrywanie Emocji:': 'rgb(168, 85, 247)',
+      'Emotion Detection:': 'rgb(168, 85, 247)',
+      // STT Model titles
+      'Web (Szybki):': 'rgb(59, 130, 246)',
+      'Web (Fast):': 'rgb(59, 130, 246)',
+      'Whisper (Wolny):': 'rgb(168, 85, 247)',
+      'Whisper (Slow):': 'rgb(168, 85, 247)',
+      // TTS Model titles
+      'Web:': 'rgb(59, 130, 246)',
+      'Edge:': 'rgb(34, 197, 94)',
+      'Piper:': 'rgb(168, 85, 247)',
+    };
+    
+    // Apply colors to titles
+    Object.entries(colorMap).forEach(([title, color]) => {
+      const regex = new RegExp(`(<strong>)?${title.replace(/[()]/g, '\\$&')}(</strong>)?`, 'g');
+      formatted = formatted.replace(regex, `<span style="color: ${color}; font-weight: 600;">${title}</span>`);
+    });
+    
+    return formatted;
   };
 
   useEffect(() => {
