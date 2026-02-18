@@ -237,34 +237,35 @@ const HelpTooltip: React.FC<{
     // First apply bold formatting
     let formatted = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
     
-    // Then colorize specific titles
+    // Then colorize specific titles (without colons)
     const colorMap: { [key: string]: string } = {
       // Profile titles
-      'Szybki:': 'rgb(59, 130, 246)', // blue-500
-      'Fast:': 'rgb(59, 130, 246)',
-      'Normalny:': 'rgb(34, 197, 94)', // green-500
-      'Normal:': 'rgb(34, 197, 94)',
-      'Empatyczny:': 'rgb(168, 85, 247)', // purple-500
-      'Empathetic:': 'rgb(168, 85, 247)',
+      'Szybki': 'rgb(59, 130, 246)', // blue-500
+      'Fast': 'rgb(59, 130, 246)',
+      'Normalny': 'rgb(34, 197, 94)', // green-500
+      'Normal': 'rgb(34, 197, 94)',
+      'Empatyczny': 'rgb(168, 85, 247)', // purple-500
+      'Empathetic': 'rgb(168, 85, 247)',
       // Feature titles
-      'Czytanie Wiadomości (TTS):': 'rgb(59, 130, 246)',
-      'Read Messages (TTS):': 'rgb(59, 130, 246)',
-      'Wykrywanie Emocji:': 'rgb(168, 85, 247)',
-      'Emotion Detection:': 'rgb(168, 85, 247)',
+      'Czytanie Wiadomości (TTS)': 'rgb(59, 130, 246)',
+      'Read Messages (TTS)': 'rgb(59, 130, 246)',
+      'Wykrywanie Emocji': 'rgb(168, 85, 247)',
+      'Emotion Detection': 'rgb(168, 85, 247)',
       // STT Model titles
-      'Web (Szybki):': 'rgb(59, 130, 246)',
-      'Web (Fast):': 'rgb(59, 130, 246)',
-      'Whisper (Wolny):': 'rgb(168, 85, 247)',
-      'Whisper (Slow):': 'rgb(168, 85, 247)',
+      'Web (Szybki)': 'rgb(59, 130, 246)',
+      'Web (Fast)': 'rgb(59, 130, 246)',
+      'Whisper (Wolny)': 'rgb(168, 85, 247)',
+      'Whisper (Slow)': 'rgb(168, 85, 247)',
       // TTS Model titles
-      'Web:': 'rgb(59, 130, 246)',
-      'Edge:': 'rgb(34, 197, 94)',
-      'Piper:': 'rgb(168, 85, 247)',
+      'Web': 'rgb(59, 130, 246)',
+      'Edge': 'rgb(34, 197, 94)',
+      'Piper': 'rgb(168, 85, 247)',
     };
     
-    // Apply colors to titles
+    // Apply colors to titles (match only titles at word boundaries before colon)
     Object.entries(colorMap).forEach(([title, color]) => {
-      const regex = new RegExp(`(<strong>)?${title.replace(/[()]/g, '\\$&')}(</strong>)?`, 'g');
+      // Match title followed by colon, but don't include the colon in the color
+      const regex = new RegExp(`(<strong>)?${title.replace(/[()]/g, '\\$&')}(?=:)(</strong>)?`, 'g');
       formatted = formatted.replace(regex, `<span style="color: ${color}; font-weight: 600;">${title}</span>`);
     });
     
@@ -345,7 +346,7 @@ const HelpTooltip: React.FC<{
             className="z-[9999] focus:outline-none"
             {...getFloatingProps()}
           >
-            <div className="relative rounded-xl border border-slate-300/80 bg-slate-100/55 supports-[backdrop-filter]:bg-slate-100/25 backdrop-blur-xl backdrop-saturate-150 shadow-[0_16px_40px_rgba(15,23,42,0.28)] p-3 text-[11px] sm:text-xs text-slate-600 leading-relaxed whitespace-pre-line break-words">
+            <div className="relative rounded-xl border border-slate-300/80 bg-slate-100/55 supports-[backdrop-filter]:bg-slate-100/25 backdrop-blur-xl backdrop-saturate-150 shadow-[0_16px_40px_rgba(15,23,42,0.28)] p-3 text-[11px] sm:text-xs text-slate-600 leading-relaxed whitespace-pre-line break-words font-light">
               <span dangerouslySetInnerHTML={{ __html: formatContent(content) }} />
               <FloatingArrow
                 ref={arrowRef}
