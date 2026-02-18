@@ -298,10 +298,11 @@ const HelpTooltip: React.FC<{
         boundary: boundary || undefined,
         padding: modalSidePadding,
         apply({ availableWidth, elements }) {
-          const fullTooltipWidth = Math.max(220, Math.floor(availableWidth));
+          const fullTooltipWidth = Math.max(220, Math.floor(availableWidth)) + 4;
           Object.assign(elements.floating.style, {
             width: `${fullTooltipWidth}px`,
             maxWidth: `${fullTooltipWidth}px`,
+            marginLeft: '-2px',
           });
         },
       }),
@@ -1738,12 +1739,12 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
 
                 {/* Feature Toggles */}
                 <div className="mb-6 border border-gray-200 rounded-2xl bg-white">
-                  <label className="flex items-center justify-between px-3 py-2 rounded-t-2xl cursor-pointer hover:bg-gray-50 gap-3">
+                  <label className="flex items-center justify-between px-3 py-3 rounded-t-2xl cursor-pointer hover:bg-gray-50 gap-3">
                     <span className="text-[12px] font-medium text-gray-700">
                       {t.enableTTS}
                     </span>
                     <span
-                      className={`w-4 h-4 flex items-center justify-center rounded-full border transition-colors ${
+                      className={`w-[18px] h-[18px] flex items-center justify-center rounded-full border transition-colors ${
                         state.settings.enableTTS
                           ? "bg-gray-500 border-gray-500"
                           : "bg-white border-gray-300"
@@ -1751,7 +1752,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                     >
                       <svg
                         viewBox="0 0 16 16"
-                        className={`w-3 h-3 ${
+                        className={`w-3.5 h-3.5 ${
                           state.settings.enableTTS
                             ? "text-white"
                             : "text-transparent"
@@ -1792,7 +1793,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
 
                   <label
                     className={`flex items-center justify-between px-3 rounded-b-2xl cursor-pointer hover:bg-gray-50 gap-3 ${
-                      state.settings.sttModel === "browser" ? "py-1" : "py-2"
+                      state.settings.sttModel === "browser" ? "py-2" : "py-3"
                     } ${
                       state.settings.sttModel === "browser" ? "opacity-50" : ""
                     }`}
@@ -1808,7 +1809,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                       )}
                     </div>
                     <span
-                      className={`w-4 h-4 flex items-center justify-center rounded-full border transition-colors ${
+                      className={`w-[18px] h-[18px] flex items-center justify-center rounded-full border transition-colors ${
                         state.settings.enableEmotions
                           ? "bg-purple-600 border-purple-600"
                           : "bg-white border-gray-300"
@@ -1816,7 +1817,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                     >
                       <svg
                         viewBox="0 0 16 16"
-                        className={`w-3 h-3 ${
+                        className={`w-3.5 h-3.5 ${
                           state.settings.enableEmotions
                             ? "text-white"
                             : "text-transparent"
