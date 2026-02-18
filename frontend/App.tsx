@@ -328,7 +328,7 @@ const HelpTooltip: React.FC<{
       <button
         ref={refs.setReference}
         type="button"
-        className="w-5 h-5 rounded-full border border-gray-300 text-gray-500 text-[10px] font-bold leading-none flex items-center justify-center hover:bg-gray-100 cursor-help"
+        className="w-4 h-4 rounded-full border border-gray-300 text-gray-500 text-[9px] font-bold leading-none flex items-center justify-center hover:bg-gray-100 cursor-help"
         aria-label={ariaLabel}
         onClick={(e) => {
           e.stopPropagation();
@@ -1600,7 +1600,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                         settings: { ...prev.settings, language: "en" },
                       }))
                     }
-                    className={`flex-1 py-3 rounded-2xl border-2 transition-all flex flex-col items-center justify-center gap-2 ${
+                    className={`flex-1 py-2.5 rounded-2xl border-2 transition-all flex flex-col items-center justify-center gap-2 ${
                       state.settings.language === "en"
                         ? "border-blue-500 bg-blue-50"
                         : "border-transparent bg-gray-50 opacity-60"
@@ -1608,7 +1608,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                   >
                     <span
                       className="fi fi-us"
-                      style={{ fontSize: "1.7rem", borderRadius: "0.375rem" }}
+                      style={{ fontSize: "1.6rem", borderRadius: "0.375rem" }}
                     ></span>
                     <span className="text-xs font-medium text-gray-700">
                       English
@@ -1621,7 +1621,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                         settings: { ...prev.settings, language: "pl" },
                       }))
                     }
-                    className={`flex-1 py-3 rounded-2xl border-2 transition-all flex flex-col items-center justify-center gap-2 ${
+                    className={`flex-1 py-2.5 rounded-2xl border-2 transition-all flex flex-col items-center justify-center gap-2 ${
                       state.settings.language === "pl"
                         ? "border-blue-500 bg-blue-50"
                         : "border-transparent bg-gray-50 opacity-60"
@@ -1629,7 +1629,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                   >
                     <span
                       className="fi fi-pl"
-                      style={{ fontSize: "1.7rem", borderRadius: "0.375rem" }}
+                      style={{ fontSize: "1.6rem", borderRadius: "0.375rem" }}
                     ></span>
                     <span className="text-xs font-medium text-gray-700">
                       Polish
