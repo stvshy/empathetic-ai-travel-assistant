@@ -1860,7 +1860,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                     </label>
                     <HelpTooltip content={t.helpInputModel} ariaLabel={`${t.inputModelLabel} help`} />
                   </div>
-                  <div className="flex bg-gray-100 p-1 rounded-lg min-h-[38px]">
+                  <div className="flex bg-gray-100 px-0.5 py-0.5 rounded-lg">
                     <div className="relative flex-1 group">
                       <button
                         onClick={() =>
@@ -1924,7 +1924,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                     </label>
                     <HelpTooltip content={t.helpVoiceModel} ariaLabel={`${t.voiceModelLabel} help`} placement="top" />
                   </div>
-                  <div className="flex bg-gray-100 p-1 rounded-lg min-h-[38px]">
+                  <div className="flex bg-gray-100 px-0.5 py-0.5 rounded-lg">
                     <div className="relative flex-1 group">
                       <button
                         onClick={() =>
