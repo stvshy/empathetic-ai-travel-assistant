@@ -231,7 +231,9 @@ const HelpTooltip: React.FC<{
   ariaLabel: string;
   placement?: Placement;
   lang?: string;
-}> = ({ content, ariaLabel, placement: userPlacement = "bottom", lang: propLang }) => {
+  tooltipId: string;
+  onOpenChange?: (id: string, open: boolean) => void;
+}> = ({ content, ariaLabel, placement: userPlacement = "bottom", lang: propLang, tooltipId, onOpenChange }) => {
   const arrowRef = useRef(null);
   const [isOpen, setIsOpen] = useState(false);
   const [boundary, setBoundary] = useState<HTMLElement | null>(null);
@@ -294,6 +296,14 @@ const HelpTooltip: React.FC<{
        setBoundary(modal);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    onOpenChange?.(tooltipId, isOpen);
+    return () => {
+      // Ensure overlay is cleared if tooltip unmounts while open
+      onOpenChange?.(tooltipId, false);
+    };
+  }, [isOpen, onOpenChange, tooltipId]);
 
   const { refs, floatingStyles, context } = useFloating({
     placement: userPlacement,
@@ -362,14 +372,14 @@ const HelpTooltip: React.FC<{
             className="z-[9999] focus:outline-none"
             {...getFloatingProps()}
           >
-            <div className="relative rounded-xl border border-slate-300/80 bg-slate-100/55 supports-[backdrop-filter]:bg-slate-100/25 backdrop-blur-xl backdrop-saturate-150 shadow-[0_16px_40px_rgba(15,23,42,0.28)] p-3 text-[11px] sm:text-xs text-slate-600 leading-relaxed whitespace-pre-wrap break-normal font-light text-justify" lang={lang} style={{ hyphens: 'auto', WebkitHyphens: 'auto' }}>
+            <div className="relative rounded-xl border-[0.5px] border-slate-300/55 bg-slate-200/70 supports-[backdrop-filter]:bg-slate-200/30 backdrop-blur-xl backdrop-saturate-150 shadow-[0_18px_44px_rgba(15,23,42,0.30)] p-3 text-[11px] sm:text-xs text-slate-700 leading-relaxed whitespace-pre-wrap break-normal font-light text-justify" lang={lang} style={{ hyphens: 'auto', WebkitHyphens: 'auto' }}>
               <span dangerouslySetInnerHTML={{ __html: formatContent(content) }} />
               <FloatingArrow
                 ref={arrowRef}
                 context={context}
-                fill="rgba(241, 245, 249, 0.92)"
-                stroke="rgba(203, 213, 225, 0.8)"
-                strokeWidth={1}
+                fill="rgba(226, 232, 240, 0.90)"
+                stroke="rgba(148, 163, 184, 0.55)"
+                strokeWidth={0.75}
                 width={10}
                 height={5}
                 tipRadius={1}
@@ -388,6 +398,16 @@ const App: React.FC = () => {
 const audioQueueRef = useRef<string[]>([]); // Kolejka zdań do przetworzenia
 const isPlayingAudioRef = useRef(false);    // Czy aktualnie coś gra
 const currentAudioObjRef = useRef<HTMLAudioElement | null>(null); // Aktualny obiekt Audio
+  const [openHelpTooltipId, setOpenHelpTooltipId] = useState<string | null>(null);
+  const [hoverTooltipId, setHoverTooltipId] = useState<"stt" | "tts" | null>(null);
+  const isSettingsTooltipActive = openHelpTooltipId !== null || hoverTooltipId !== null;
+
+  const handleHelpTooltipOpenChange = (id: string, open: boolean) => {
+    setOpenHelpTooltipId((prev) => {
+      if (open) return id;
+      return prev === id ? null : prev;
+    });
+  };
   // --- DOMYŚLNE USTAWIENIA NA PODSTAWIE OBSŁUGI PRZEGLĄDARKI ---
   const getDefaultSettings = (): Settings => ({
     language: "en" as const, 
@@ -1744,14 +1764,14 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
       {/* --- SETTINGS MODAL --- */}
       {state.showSettings && (
         <div className="absolute inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
-          <div className="settings-modal-content bg-white w-full sm:max-w-md rounded-3xl p-4 sm:p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh] mx-auto">
+          <div className="settings-modal-content bg-white w-full sm:max-w-md rounded-3xl p-4 sm:p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh] mx-auto relative">
             <div className="flex justify-between items-center mb-4 sm:mb-6">
               <h2 className="text-lg sm:text-xl font-bold text-gray-800">
                 {t.settingsTitle}
               </h2>
               <button
                 onClick={() =>
-                  setState((prev) => ({ ...prev, showSettings: false }))
+                  (setOpenHelpTooltipId(null), setHoverTooltipId(null), setState((prev) => ({ ...prev, showSettings: false })))
                 }
                 className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-200"
               >
@@ -1759,7 +1779,11 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
               </button>
             </div>
 
-            <div className="space-y-6">
+            {isSettingsTooltipActive && (
+              <div className="pointer-events-none absolute inset-0 rounded-3xl bg-slate-900/5 backdrop-blur-[2px] backdrop-saturate-75 z-10" />
+            )}
+
+            <div className="space-y-6 relative">
               {/* Język */}
               <div>
                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
@@ -1813,11 +1837,17 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
 
               {/* Profile */}
               <div>
-                <div className="flex items-center gap-2 mb-2">
+                <div className={`flex items-center gap-2 mb-2 ${openHelpTooltipId === "quickProfiles" ? "relative z-20" : ""}`}>
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
                     {t.predefinedLabel}
                   </label>
-                  <HelpTooltip content={t.helpQuickProfiles} ariaLabel={`${t.predefinedLabel} help`} lang={state.settings.language} />
+                  <HelpTooltip
+                    tooltipId="quickProfiles"
+                    content={t.helpQuickProfiles}
+                    ariaLabel={`${t.predefinedLabel} help`}
+                    lang={state.settings.language}
+                    onOpenChange={handleHelpTooltipOpenChange}
+                  />
                 </div>
                 <div className="grid grid-cols-3 gap-2">
                   <button
@@ -1903,11 +1933,17 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
 
               {/* Advanced */}
               <div className="pt-0">
-                <div className="flex items-center gap-2 mb-3">
+                <div className={`flex items-center gap-2 mb-3 ${openHelpTooltipId === "advanced" ? "relative z-20" : ""}`}>
                   <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">
                     {t.advancedLabel}
                   </div>
-                  <HelpTooltip content={t.helpAdvanced} ariaLabel={`${t.advancedLabel} help`} lang={state.settings.language} />
+                  <HelpTooltip
+                    tooltipId="advanced"
+                    content={t.helpAdvanced}
+                    ariaLabel={`${t.advancedLabel} help`}
+                    lang={state.settings.language}
+                    onOpenChange={handleHelpTooltipOpenChange}
+                  />
                 </div>
 
                 {/* Feature Toggles */}
@@ -2026,15 +2062,25 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                 </div>
 
                 {/* STT Select */}
-                <div className="mb-5">
-                  <div className="flex items-center gap-2 mb-1">
+                <div className={`mb-5 ${openHelpTooltipId === "sttModel" ? "relative z-20" : ""}`}>
+                  <div className={`flex items-center gap-2 mb-1 ${openHelpTooltipId === "sttModel" ? "relative z-20" : ""}`}>
                     <label className="text-[12px] text-gray-500 font-semibold block">
                       {t.inputModelLabel}
                     </label>
-                    <HelpTooltip content={t.helpInputModel} ariaLabel={`${t.inputModelLabel} help`} lang={state.settings.language} />
+                    <HelpTooltip
+                      tooltipId="sttModel"
+                      content={t.helpInputModel}
+                      ariaLabel={`${t.inputModelLabel} help`}
+                      lang={state.settings.language}
+                      onOpenChange={handleHelpTooltipOpenChange}
+                    />
                   </div>
-                  <div className="flex bg-gray-100 px-0.5 py-0.5 rounded-lg">
-                    <div className="relative flex-1 group">
+                  <div className={`flex bg-gray-100 px-0.5 py-0.5 rounded-lg ${hoverTooltipId === "stt" ? "relative z-20" : ""}`}>
+                    <div
+                      className={`relative flex-1 group ${hoverTooltipId === "stt" ? "z-20" : ""}`}
+                      onMouseEnter={!webSpeechSupport.stt ? () => setHoverTooltipId("stt") : undefined}
+                      onMouseLeave={!webSpeechSupport.stt ? () => setHoverTooltipId(null) : undefined}
+                    >
                       <button
                         onClick={() =>
                           setState((prev) => ({
@@ -2051,18 +2097,32 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                         className={`w-full py-1.5 rounded-md text-[12px] font-medium transition-all ${
                           state.settings.sttModel === "browser"
                             ? "bg-white shadow text-blue-500"
-                            : webSpeechSupport.stt ? "text-gray-500 cursor-pointer" : "text-gray-300 cursor-not-allowed"
-                        } ${!webSpeechSupport.stt ? "opacity-50" : ""}`}
+                            : webSpeechSupport.stt ? "text-gray-500 cursor-pointer" : "text-gray-400 cursor-not-allowed"
+                        } ${!webSpeechSupport.stt ? "opacity-80" : ""}`}
                       >
                         {t.modelWeb}
                       </button>
 
                       {!webSpeechSupport.stt && (
                         <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 -top-2 -translate-y-full opacity-0 group-hover:opacity-100 transition-opacity z-50">
-                          <div className="bg-gray-900 text-white text-[10px] sm:text-[11px] leading-relaxed px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg shadow-lg w-max max-w-[150px] sm:max-w-[200px] text-center">
+                          <div className="rounded-xl border-[0.5px] border-slate-300/55 bg-slate-200/70 supports-[backdrop-filter]:bg-slate-200/30 backdrop-blur-xl backdrop-saturate-150 shadow-[0_12px_28px_rgba(15,23,42,0.24)] text-slate-700 text-[10px] sm:text-[11px] leading-relaxed px-2 py-1.5 sm:px-3 sm:py-2 w-max max-w-[150px] sm:max-w-[200px] text-center">
                             {t.webSttNotSupported}
                           </div>
-                          <div className="w-0 h-0 mx-auto border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-900" />
+                          <svg
+                            className="mx-auto"
+                            width="12"
+                            height="6"
+                            viewBox="0 0 12 6"
+                            aria-hidden="true"
+                          >
+                            <path
+                              d="M1 0.5 L6 5.5 L11 0.5"
+                              fill="rgba(226, 232, 240, 0.90)"
+                              stroke="rgba(148, 163, 184, 0.55)"
+                              strokeWidth="0.75"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
                         </div>
                       )}
                     </div>
@@ -2090,15 +2150,26 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                 </div>
 
                 {/* TTS Select */}
-                <div>
+                <div className={`${openHelpTooltipId === "ttsModel" || hoverTooltipId === "tts" ? "relative z-20" : ""}`}>
                   <div className="flex items-center gap-2 mb-1">
                     <label className="text-[12px] text-gray-500 font-semibold block">
                       {t.voiceModelLabel}
                     </label>
-                    <HelpTooltip content={t.helpVoiceModel} ariaLabel={`${t.voiceModelLabel} help`} placement="top" lang={state.settings.language} />
+                    <HelpTooltip
+                      tooltipId="ttsModel"
+                      content={t.helpVoiceModel}
+                      ariaLabel={`${t.voiceModelLabel} help`}
+                      placement="top"
+                      lang={state.settings.language}
+                      onOpenChange={handleHelpTooltipOpenChange}
+                    />
                   </div>
                   <div className="flex bg-gray-100 px-0.5 py-0.5 rounded-lg">
-                    <div className="relative flex-1 group">
+                    <div
+                      className={`relative flex-1 group ${hoverTooltipId === "tts" ? "z-20" : ""}`}
+                      onMouseEnter={!webSpeechSupport.tts ? () => setHoverTooltipId("tts") : undefined}
+                      onMouseLeave={!webSpeechSupport.tts ? () => setHoverTooltipId(null) : undefined}
+                    >
                       <button
                         onClick={() =>
                           setState((prev) => ({
@@ -2119,10 +2190,24 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
 
                       {!webSpeechSupport.tts && (
                         <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 -top-2 -translate-y-full opacity-0 group-hover:opacity-100 transition-opacity z-50">
-                          <div className="bg-gray-900 text-white text-[10px] sm:text-[11px] leading-relaxed px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg shadow-lg w-max max-w-[150px] sm:max-w-[200px] text-center">
+                          <div className="rounded-xl border-[0.5px] border-slate-300/55 bg-slate-200/70 supports-[backdrop-filter]:bg-slate-200/30 backdrop-blur-xl backdrop-saturate-150 shadow-[0_12px_28px_rgba(15,23,42,0.24)] text-slate-700 text-[10px] sm:text-[11px] leading-relaxed px-2 py-1.5 sm:px-3 sm:py-2 w-max max-w-[150px] sm:max-w-[200px] text-center">
                             {t.webTtsNotSupported}
                           </div>
-                          <div className="w-0 h-0 mx-auto border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-900" />
+                          <svg
+                            className="mx-auto"
+                            width="12"
+                            height="6"
+                            viewBox="0 0 12 6"
+                            aria-hidden="true"
+                          >
+                            <path
+                              d="M1 0.5 L6 5.5 L11 0.5"
+                              fill="rgba(226, 232, 240, 0.90)"
+                              stroke="rgba(148, 163, 184, 0.55)"
+                              strokeWidth="0.75"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
                         </div>
                       )}
                     </div>
