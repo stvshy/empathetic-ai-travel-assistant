@@ -385,7 +385,9 @@ const HelpTooltip: React.FC<{
 const App: React.FC = () => {
   // --- KONFIGURACJA ADRESU API ---
     const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/$/, "");
-
+const audioQueueRef = useRef<string[]>([]); // Kolejka zdań do przetworzenia
+const isPlayingAudioRef = useRef(false);    // Czy aktualnie coś gra
+const currentAudioObjRef = useRef<HTMLAudioElement | null>(null); // Aktualny obiekt Audio
   // --- DOMYŚLNE USTAWIENIA NA PODSTAWIE OBSŁUGI PRZEGLĄDARKI ---
   const getDefaultSettings = (): Settings => ({
     language: "en" as const, 
@@ -561,11 +563,12 @@ const App: React.FC = () => {
         window.speechSynthesis.cancel(); // <- To jest ten hamulec ręczny
       }
       // Przerwij też Pipera
-      if (piperAudioRef.current) {
-        piperAudioRef.current.pause();
-        piperAudioRef.current.currentTime = 0;
-        piperAudioRef.current = null;
-      }
+      if (currentAudioObjRef.current) {
+    currentAudioObjRef.current.pause();
+    currentAudioObjRef.current = null;
+}
+audioQueueRef.current = []; // Wyczyść kolejkę oczekujących zdań
+isPlayingAudioRef.current = false;
     }
   }, [state.settings.enableTTS]); // Tablica zależności: uruchom to tylko gdy zmieni się enableTTS
 
@@ -575,11 +578,12 @@ const App: React.FC = () => {
       window.speechSynthesis.cancel();
     }
     // Przerwij też Pipera
-    if (piperAudioRef.current) {
-      piperAudioRef.current.pause();
-      piperAudioRef.current.currentTime = 0;
-      piperAudioRef.current = null;
-    }
+    if (currentAudioObjRef.current) {
+    currentAudioObjRef.current.pause();
+    currentAudioObjRef.current = null;
+}
+audioQueueRef.current = []; // Wyczyść kolejkę oczekujących zdań
+isPlayingAudioRef.current = false;
   }, [state.settings.language]);
 
   // --- FUNKCJA CZYSZCZĄCA MARKDOWN ---
@@ -670,114 +674,143 @@ const App: React.FC = () => {
       console.warn("⚠️ Nie udało się odblokować Web TTS:", e);
     }
   };
+const splitIntoSentences = (text: string): string[] => {
+    // Proste dzielenie po kropkach, wykrzyknikach i pytajnikach, 
+    // ale ignoruje kropki po cyfrach (np. 1. 2024.)
+    const segmenter = new Intl.Segmenter(state.settings.language === 'pl' ? 'pl' : 'en', { granularity: 'sentence' });
+    const segments = segmenter.segment(text);
+    return Array.from(segments).map(s => s.segment).filter(s => s.trim().length > 0);
+};
 
-  const speakText = async (text: string) => {
-    // Sprawdzamy ustawienia z Refa
-    if (!settingsRef.current.enableTTS) return;
-
-    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-    if (piperAudioRef.current) {
-      piperAudioRef.current.pause();
-      piperAudioRef.current = null;
+// 3. Funkcja odtwarzająca kolejkę (rekurencyjna)
+ const processAudioQueue = async () => {
+    if (audioQueueRef.current.length === 0) {
+      isPlayingAudioRef.current = false;
+      return;
     }
 
-    const cleanText = stripMarkdown(text);
-    const model = settingsRef.current.ttsModel; // Pobieramy model
+    isPlayingAudioRef.current = true;
+    const sentence = audioQueueRef.current.shift();
+    if (!sentence) return;
 
-    // === ZMIANA: Obsługa PIPER LUB EDGE ===
-    if (model === "piper" || model === "edge") {
-      try {
-        const res = await fetch(`${API_URL}/tts`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            text: cleanText,
-            language: settingsRef.current.language,
-            model: model // <--- Wysyłamy "piper" lub "edge"
-          }), 
-        });
+    try {
+      const cleanText = stripMarkdown(sentence);
+      if (!cleanText.trim()) {
+        processAudioQueue();
+        return;
+      }
 
-        if (!res.ok) {
-          console.error(`${model} TTS error:`, await res.text());
-          return;
-        }
+      // Używamy settingsRef.current, żeby mieć pewność co do aktualnego języka/modelu
+      const currentSettings = settingsRef.current;
 
-        const audioBlob = await res.blob();
-        const audioUrl = URL.createObjectURL(audioBlob);
-        const audio = new Audio(audioUrl);
-        (audio as any).playsInline = true;
-        audio.setAttribute("playsinline", "true");
-        
-        piperAudioRef.current = audio;
-        
+      const res = await fetch(`${API_URL}/tts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: cleanText,
+          language: currentSettings.language,
+          model: currentSettings.ttsModel,
+        }),
+      });
+
+      if (!res.ok) throw new Error("TTS Error");
+
+      const audioBlob = await res.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+      currentAudioObjRef.current = audio;
+
+      await new Promise<void>((resolve) => {
         audio.onended = () => {
           URL.revokeObjectURL(audioUrl);
-          piperAudioRef.current = null;
-          setPendingPiperPlayback(false);
+          resolve();
         };
+        audio.onerror = () => resolve();
+        audio.play().catch((e) => {
+          console.warn("Auto-play blocked", e);
+          resolve();
+        });
+      });
 
-        try {
-          await audio.play();
-          setPendingPiperPlayback(false);
-        } catch (playErr) {
-          console.warn("Audio play blocked:", playErr);
-          setPendingPiperPlayback(true);
-        }
-      } catch (err) {
-        console.error("Backend TTS failed:", err);
+      processAudioQueue();
+    } catch (e) {
+      console.error("Błąd odtwarzania zdania:", e);
+      processAudioQueue();
+    }
+  };
+
+ const speakText = async (text: string) => {
+    if (!settingsRef.current.enableTTS) return; // Używajmy refa dla spójności
+
+    // 1. Definiujemy cleanText NA GÓRZE, żeby był dostępny wszędzie
+    const cleanText = stripMarkdown(text);
+
+    // Resetowanie starego audio
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    if (currentAudioObjRef.current) {
+      currentAudioObjRef.current.pause();
+      currentAudioObjRef.current = null;
+    }
+
+    // Czyścimy kolejkę
+    audioQueueRef.current = [];
+    isPlayingAudioRef.current = false;
+
+    const model = settingsRef.current.ttsModel;
+
+    // --- LOGIKA DLA EDGE TTS (i Piper) ---
+    if (model === "piper" || model === "edge") {
+      const sentences = splitIntoSentences(text);
+      audioQueueRef.current = sentences;
+
+      if (!isPlayingAudioRef.current) {
+        processAudioQueue();
       }
       return;
     }
 
-    // Używamy przeglądarki (Web Speech API)
-    if ('SpeechSynthesisUtterance' in window && 'speechSynthesis' in window) {
+    // --- LOGIKA DLA PRZEGLĄDARKI (WEB SPEECH API) ---
+    if ("SpeechSynthesisUtterance" in window && "speechSynthesis" in window) {
+      // TERAZ cleanText JEST JUŻ DOSTĘPNY!
       const utterance = new SpeechSynthesisUtterance(cleanText);
-      // Używamy języka z Refa dla pewności
+      
       const isPolish = settingsRef.current.language === "pl";
       const targetLang = isPolish ? "pl-PL" : "en-US";
 
       utterance.lang = targetLang;
 
       if (availableVoices.length > 0) {
-        // KROK 1: Filtrujemy głosy pasujące do języka
         const langVoices = availableVoices.filter((v) =>
           v.lang.includes(isPolish ? "pl" : "en")
         );
 
-        // KROK 2: Szukamy "najlepszego" głosu (Natural > Google > Systemowy)
         let selectedVoice = langVoices.find(
-          (v) => v.name.includes("Natural") || v.name.includes("Online") // Edge Neural (Najlepsze)
+          (v) => v.name.includes("Natural") || v.name.includes("Online")
         );
 
         if (!selectedVoice) {
-          selectedVoice = langVoices.find((v) => v.name.includes("Google")); // Chrome (Średnie/Dobre)
+          selectedVoice = langVoices.find((v) => v.name.includes("Google"));
         }
 
         if (!selectedVoice) {
-          selectedVoice = langVoices[0]; // Pierwszy z brzegu (Systemowy - słaby)
+          selectedVoice = langVoices[0];
         }
 
-        // Przypisanie
         if (selectedVoice) {
           utterance.voice = selectedVoice;
-          console.log(`Wybrano głos: ${selectedVoice.name}`);
         }
       }
 
-      // Opcjonalnie: Lekkie zwolnienie tempa dla polskiego, żeby brzmiał naturalniej
       if (isPolish) {
         utterance.rate = 0.95;
         utterance.pitch = 1.0;
       }
 
-      // FIX dla mobile: Resume speechSynthesis przed speak()
-      // Na iOS/Android czasem synthesis jest w stanie "paused" i trzeba go wznowić
       if (window.speechSynthesis.paused) {
         window.speechSynthesis.resume();
       }
 
       if (isMobile) {
-        // Start kick *before* speak to avoid long delays.
         startMobileTtsKick();
       }
 
@@ -797,8 +830,7 @@ const App: React.FC = () => {
       };
 
       window.speechSynthesis.speak(utterance);
-      
-      // FIX 2: Dodatkowe wznowienie po 100ms (iOS workaround)
+
       if (isMobile) {
         setTimeout(() => {
           if (window.speechSynthesis.paused) {
@@ -806,15 +838,18 @@ const App: React.FC = () => {
           }
         }, 100);
 
-        // Jeśli mobile zablokował autoplay (brak user-gesture), pokaż fallback.
         setTimeout(() => {
           const notSpeaking = !window.speechSynthesis.speaking;
-          if (!didStart && notSpeaking && settingsRef.current.enableTTS && settingsRef.current.ttsModel === "browser") {
+          if (
+            !didStart &&
+            notSpeaking &&
+            settingsRef.current.enableTTS &&
+            settingsRef.current.ttsModel === "browser"
+          ) {
             setPendingTtsText(cleanText);
           }
         }, 400);
 
-        // Safety: stop kick after a while to avoid leaking intervals
         setTimeout(() => {
           stopMobileTtsKick();
         }, 45000);
@@ -901,11 +936,12 @@ const App: React.FC = () => {
       window.speechSynthesis.cancel();
     }
     // Przerwij też Pipera
-    if (piperAudioRef.current) {
-      piperAudioRef.current.pause();
-      piperAudioRef.current.currentTime = 0;
-      piperAudioRef.current = null;
-    }
+    if (currentAudioObjRef.current) {
+    currentAudioObjRef.current.pause();
+    currentAudioObjRef.current = null;
+}
+audioQueueRef.current = []; // Wyczyść kolejkę oczekujących zdań
+isPlayingAudioRef.current = false;
     const greeting =
       state.settings.language === "pl"
         ? "Cześć! Gdzie chciałbyś się wybrać?"
@@ -939,11 +975,12 @@ const App: React.FC = () => {
       window.speechSynthesis.cancel();
     }
     // Przerwij też Pipera
-    if (piperAudioRef.current) {
-      piperAudioRef.current.pause();
-      piperAudioRef.current.currentTime = 0;
-      piperAudioRef.current = null;
-    }
+    if (currentAudioObjRef.current) {
+    currentAudioObjRef.current.pause();
+    currentAudioObjRef.current = null;
+}
+audioQueueRef.current = []; // Wyczyść kolejkę oczekujących zdań
+isPlayingAudioRef.current = false;
 
     // Mobile: odblokuj Web TTS tylko jeśli to faktycznie user-gesture
     if (fromUserGesture) {
@@ -1145,11 +1182,12 @@ const App: React.FC = () => {
       window.speechSynthesis.cancel();
     }
     // Przerwij też Pipera
-    if (piperAudioRef.current) {
-      piperAudioRef.current.pause();
-      piperAudioRef.current.currentTime = 0;
-      piperAudioRef.current = null;
-    }
+    if (currentAudioObjRef.current) {
+    currentAudioObjRef.current.pause();
+    currentAudioObjRef.current = null;
+}
+audioQueueRef.current = []; // Wyczyść kolejkę oczekujących zdań
+isPlayingAudioRef.current = false;
     
     // Mobile: odblokuj Web TTS w user-gesture (klik mikrofonu)
     unlockWebTtsIfNeeded();

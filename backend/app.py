@@ -208,9 +208,15 @@ else:
 print("✅ Backend gotowy!")
 
 # Funkcja pomocnicza do generowania Edge TTS
-async def generate_edge_audio(text, voice, output_file):
+async def generate_edge_audio_memory(text, voice):
     communicate = edge_tts.Communicate(text, voice)
-    await communicate.save(output_file)
+    audio_stream = io.BytesIO()
+    # Zbieramy chunki audio w pamięci RAM
+    async for chunk in communicate.stream():
+        if chunk["type"] == "audio":
+            audio_stream.write(chunk["data"])
+    audio_stream.seek(0)
+    return audio_stream
     
 def generate_gemini_response(user_text, language="pl", emotion=None, history=None):
     # 1. Wybór instrukcji i dodanie emocji jako "meta-dane" (ukryte)
@@ -362,35 +368,23 @@ def tts():
     data = request.json
     text = data.get("text")
     lang = data.get("language", "pl")
-    # Domyślnie używamy 'edge', chyba że frontend poprosi o 'piper'
-    model_type = data.get("model", "edge") 
-
-    print(f"📢 TTS REQUEST: Tekst='{text[:20]}...', Język='{lang}', Model='{model_type}'")
+    model_type = data.get("model", "edge")
 
     if not text:
         return jsonify({"error": "Brak tekstu"}), 400
 
-    # Tworzymy plik tymczasowy
-    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_file:
-        tmp_filename = tmp_file.name
+    # Inicjalizacja zmiennej dla bezpieczeństwa (żeby blok except się nie wywalił)
+    tmp_filename = None
 
     try:
-        # === ŚCIEŻKA 1: EDGE TTS (Domyślna, Wysoka Jakość) ===
+        # === ŚCIEŻKA 1: EDGE TTS (Super Szybka - RAM) ===
         if model_type == "edge":
             voice = EDGE_VOICES.get(lang, EDGE_VOICES["pl"])
-            # Uruchamiamy asynchroniczną funkcję w synchronicznym Flasku
-            asyncio.run(generate_edge_audio(text, voice, tmp_filename))
-            
-            # Odczytujemy wygenerowany plik do pamięci RAM
-            with open(tmp_filename, "rb") as f:
-                audio_data = io.BytesIO(f.read())
-            
-            # Sprzątamy plik z dysku
-            os.remove(tmp_filename)
-            
-            return send_file(audio_data, mimetype='audio/wav', as_attachment=False, download_name='tts.wav')
-
-        # === ŚCIEŻKA 2: PIPER TTS (Lokalny, Offline, Wolniejszy start) ===
+            # Generujemy audio w pamięci RAM
+            audio_data = asyncio.run(generate_edge_audio_memory(text, voice))
+            return send_file(audio_data, mimetype='audio/mp3', as_attachment=False, download_name='tts.mp3')
+        
+        # === ŚCIEŻKA 2: PIPER TTS (Lokalny, Plikowy) ===
         elif model_type == "piper":
             if not PIPER_EXE.exists():
                 logger.error(f"❌ Nie znaleziono Pipera: {PIPER_EXE}")
@@ -408,6 +402,10 @@ def tts():
                 else:
                      return jsonify({"error": f"Brak modelu głosu Piper"}), 500
 
+            # Tworzymy plik tymczasowy TYLKO tutaj
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_file:
+                tmp_filename = tmp_file.name
+
             cmd = [
                 str(PIPER_EXE),
                 "-m", str(model_path),
@@ -420,7 +418,7 @@ def tts():
             subprocess.run(
                 cmd,
                 input=text.encode("utf-8"),
-                capture_output=True, # Ważne: ukrywa logi Pipera, chyba że jest błąd
+                capture_output=True,
                 check=True,
                 env=ENV
             )
@@ -428,7 +426,10 @@ def tts():
             with open(tmp_filename, "rb") as f:
                 audio_data = io.BytesIO(f.read())
             
+            # Sprzątamy plik
             os.remove(tmp_filename)
+            tmp_filename = None
+
             return send_file(audio_data, mimetype='audio/wav', as_attachment=False, download_name='tts.wav')
 
         else:
@@ -437,14 +438,14 @@ def tts():
     except subprocess.CalledProcessError as e:
         error_msg = e.stderr.decode("utf-8", errors="ignore") if e.stderr else str(e)
         logger.error(f"Błąd procesu TTS: {error_msg}")
-        if os.path.exists(tmp_filename): os.remove(tmp_filename)
+        if tmp_filename and os.path.exists(tmp_filename): os.remove(tmp_filename)
         return jsonify({"error": "Błąd generowania TTS", "details": error_msg}), 500
         
     except Exception as e:
         logger.error(f"Błąd ogólny TTS: {e}")
-        if os.path.exists(tmp_filename): os.remove(tmp_filename)
+        if tmp_filename and os.path.exists(tmp_filename): os.remove(tmp_filename)
         return jsonify({"error": str(e)}), 500
-       
+    
 if __name__ == '__main__':
     # Lokalnie (brak zmiennej PORT) użyje 5000.
     # Na Hugging Face (jest zmienna PORT) użyje 7860.
