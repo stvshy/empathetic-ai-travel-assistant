@@ -300,7 +300,7 @@ const HelpTooltip: React.FC<{
     open: isOpen,
     onOpenChange: setIsOpen,
     middleware: [
-      offset(10),
+      offset(6),
       flip({
         boundary: boundary || undefined,
         padding: modalSidePadding,
@@ -370,8 +370,8 @@ const HelpTooltip: React.FC<{
                 fill="rgba(241, 245, 249, 0.92)"
                 stroke="rgba(203, 213, 225, 0.8)"
                 strokeWidth={1}
-                width={14}
-                height={7}
+                width={10}
+                height={5}
                 tipRadius={1}
               />
             </div>
