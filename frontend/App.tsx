@@ -377,12 +377,13 @@ const HelpTooltip: React.FC<{
               <FloatingArrow
                 ref={arrowRef}
                 context={context}
-                fill="rgba(226, 232, 240, 0.90)"
-                stroke="rgba(148, 163, 184, 0.55)"
-                strokeWidth={0.75}
+                fill="rgba(241, 245, 249, 0.82)"
+                stroke="rgba(203, 213, 225, 0.55)"
+                strokeWidth={0.5}
                 width={10}
                 height={5}
                 tipRadius={1}
+                style={{ filter: "drop-shadow(0px 10px 22px rgba(15, 23, 42, 0.22))" }}
               />
             </div>
           </div>
@@ -2114,12 +2115,13 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                             height="6"
                             viewBox="0 0 12 6"
                             aria-hidden="true"
+                            style={{ filter: "drop-shadow(0px 10px 22px rgba(15, 23, 42, 0.22))" }}
                           >
                             <path
-                              d="M1 0.5 L6 5.5 L11 0.5"
-                              fill="rgba(226, 232, 240, 0.90)"
-                              stroke="rgba(148, 163, 184, 0.55)"
-                              strokeWidth="0.75"
+                              d="M1 0.5 L6 5.5 L11 0.5 Z"
+                              fill="rgba(241, 245, 249, 0.82)"
+                              stroke="rgba(203, 213, 225, 0.55)"
+                              strokeWidth="0.5"
                               strokeLinejoin="round"
                             />
                           </svg>
@@ -2199,12 +2201,13 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                             height="6"
                             viewBox="0 0 12 6"
                             aria-hidden="true"
+                            style={{ filter: "drop-shadow(0px 10px 22px rgba(15, 23, 42, 0.22))" }}
                           >
                             <path
-                              d="M1 0.5 L6 5.5 L11 0.5"
-                              fill="rgba(226, 232, 240, 0.90)"
-                              stroke="rgba(148, 163, 184, 0.55)"
-                              strokeWidth="0.75"
+                              d="M1 0.5 L6 5.5 L11 0.5 Z"
+                              fill="rgba(241, 245, 249, 0.82)"
+                              stroke="rgba(203, 213, 225, 0.55)"
+                              strokeWidth="0.5"
                               strokeLinejoin="round"
                             />
                           </svg>
