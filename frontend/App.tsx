@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Message, AppState, Settings } from "./types";
 import ChatBubble from "./components/ChatBubble";
+// @ts-ignore
+import { hyphenateHTMLSync as hyphenatePl } from 'hyphen/pl';
+// @ts-ignore
+import { hyphenateHTMLSync as hyphenateEn } from 'hyphen/en';
 
 // --- LEPSZE WYKRYWANIE URZĄDZENIA ---
 const getIsMobile = () => {
@@ -226,11 +230,16 @@ const HelpTooltip: React.FC<{
   content: string;
   ariaLabel: string;
   placement?: Placement;
-}> = ({ content, ariaLabel, placement: userPlacement = "bottom" }) => {
+  lang?: string;
+}> = ({ content, ariaLabel, placement: userPlacement = "bottom", lang: propLang }) => {
   const arrowRef = useRef(null);
   const [isOpen, setIsOpen] = useState(false);
   const [boundary, setBoundary] = useState<HTMLElement | null>(null);
   const modalSidePadding = 18;
+
+  // Detect language based on content
+  const isPolish = content.includes('Szybki') || content.includes('Empatyczny') || content.includes('Wykrywanie') || content.includes('Czytanie');
+  const lang = propLang || (isPolish ? 'pl' : 'en'); // Use prop if available
 
   // Convert Markdown bold (**text**) to HTML <strong> and colorize titles
   const formatContent = (text: string) => {
@@ -268,6 +277,12 @@ const HelpTooltip: React.FC<{
       const regex = new RegExp(`(<strong>)?${title.replace(/[()]/g, '\\$&')}(?=:)(</strong>)?`, 'g');
       formatted = formatted.replace(regex, `<span style="color: ${color}; font-weight: 600;">${title}</span>`);
     });
+
+    // Apply hyphenation
+    const hyphenator = lang === 'pl' ? hyphenatePl : hyphenateEn;
+    if (hyphenator) {
+      formatted = hyphenator(formatted);
+    }
     
     return formatted;
   };
@@ -347,7 +362,7 @@ const HelpTooltip: React.FC<{
             className="z-[9999] focus:outline-none"
             {...getFloatingProps()}
           >
-            <div className="relative rounded-xl border border-slate-300/80 bg-slate-100/55 supports-[backdrop-filter]:bg-slate-100/25 backdrop-blur-xl backdrop-saturate-150 shadow-[0_16px_40px_rgba(15,23,42,0.28)] p-3 text-[11px] sm:text-xs text-slate-600 leading-relaxed whitespace-pre-line break-words font-light">
+            <div className="relative rounded-xl border border-slate-300/80 bg-slate-100/55 supports-[backdrop-filter]:bg-slate-100/25 backdrop-blur-xl backdrop-saturate-150 shadow-[0_16px_40px_rgba(15,23,42,0.28)] p-3 text-[11px] sm:text-xs text-slate-600 leading-relaxed whitespace-pre-wrap break-normal font-light text-justify" lang={lang} style={{ hyphens: 'auto', WebkitHyphens: 'auto' }}>
               <span dangerouslySetInnerHTML={{ __html: formatContent(content) }} />
               <FloatingArrow
                 ref={arrowRef}
@@ -1644,7 +1659,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
                     {t.predefinedLabel}
                   </label>
-                  <HelpTooltip content={t.helpQuickProfiles} ariaLabel={`${t.predefinedLabel} help`} />
+                  <HelpTooltip content={t.helpQuickProfiles} ariaLabel={`${t.predefinedLabel} help`} lang={state.settings.language} />
                 </div>
                 <div className="grid grid-cols-3 gap-2">
                   <button
@@ -1734,7 +1749,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                   <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">
                     {t.advancedLabel}
                   </div>
-                  <HelpTooltip content={t.helpAdvanced} ariaLabel={`${t.advancedLabel} help`} />
+                  <HelpTooltip content={t.helpAdvanced} ariaLabel={`${t.advancedLabel} help`} lang={state.settings.language} />
                 </div>
 
                 {/* Feature Toggles */}
@@ -1858,7 +1873,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                     <label className="text-[12px] text-gray-500 font-semibold block">
                       {t.inputModelLabel}
                     </label>
-                    <HelpTooltip content={t.helpInputModel} ariaLabel={`${t.inputModelLabel} help`} />
+                    <HelpTooltip content={t.helpInputModel} ariaLabel={`${t.inputModelLabel} help`} lang={state.settings.language} />
                   </div>
                   <div className="flex bg-gray-100 px-0.5 py-0.5 rounded-lg">
                     <div className="relative flex-1 group">
@@ -1922,7 +1937,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                     <label className="text-[12px] text-gray-500 font-semibold block">
                       {t.voiceModelLabel}
                     </label>
-                    <HelpTooltip content={t.helpVoiceModel} ariaLabel={`${t.voiceModelLabel} help`} placement="top" />
+                    <HelpTooltip content={t.helpVoiceModel} ariaLabel={`${t.voiceModelLabel} help`} placement="top" lang={state.settings.language} />
                   </div>
                   <div className="flex bg-gray-100 px-0.5 py-0.5 rounded-lg">
                     <div className="relative flex-1 group">
