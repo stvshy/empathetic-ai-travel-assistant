@@ -1517,6 +1517,31 @@ style={{
           background-color: rgba(156, 163, 175, 0.5);
           border-radius: 20px;
         }
+        @media (min-height: 900px) and (max-width: 500px) {
+          .tall-phone-title {
+            font-size: 16px;
+          }
+          .tall-phone-status {
+            font-size: 12px;
+          }
+          .tall-phone-header-btn {
+            font-size: 18px;
+          }
+          .tall-phone-header-circle {
+            width: 36px;
+            height: 36px;
+          }
+          .tall-phone-header-circle-lg {
+            width: 42px;
+            height: 42px;
+          }
+          .tall-phone-bubble {
+            font-size: 16px;
+          }
+          .tall-phone-bubble-markdown {
+            font-size: 14px;
+          }
+        }
       `}</style>
       <header className="bg-white border-b px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between z-10">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -1525,11 +1550,13 @@ style={{
           </div>
           <div className="min-w-0">
             {/* Tytuł: responsive */}
-            <h1 className="font-bold text-gray-800 text-sm sm:text-lg truncate">{t.title}</h1>
+            <h1 className="font-bold text-gray-800 text-sm sm:text-lg tall-phone-title truncate">
+              {t.title}
+            </h1>
 
             {/* Status Zmienny */}
             <p
-              className={`text-[10px] sm:text-xs font-medium flex items-center gap-1 ${
+              className={`text-[10px] sm:text-xs tall-phone-status font-medium flex items-center gap-1 ${
                 isBackendConnected ? "text-green-500" : "text-red-500"
               } truncate`}
             >
@@ -1566,10 +1593,10 @@ style={{
                 },
               }));
             }}
-            className={`rounded-full flex items-center justify-center transition-all text-base sm:text-lg ${
+            className={`rounded-full flex items-center justify-center transition-all text-base sm:text-lg tall-phone-header-btn ${
               state.settings.enableTTS
-                ? "w-9 h-9 sm:w-11 sm:h-11 bg-green-100 text-green-600"
-                : "w-9 h-9 bg-transparent text-gray-300 hover:text-gray-400"
+                ? "w-9 h-9 sm:w-11 sm:h-11 tall-phone-header-circle tall-phone-header-circle-lg bg-green-100 text-green-600"
+                : "w-9 h-9 tall-phone-header-circle bg-transparent text-gray-300 hover:text-gray-400"
             }`}
             title={t.enableTTS}
           >
@@ -1596,10 +1623,10 @@ style={{
                 };
               })
             }
-            className={`rounded-full flex items-center justify-center transition-all text-base sm:text-lg ${
+            className={`rounded-full flex items-center justify-center transition-all text-base sm:text-lg tall-phone-header-btn ${
               state.settings.enableEmotions
-                ? "w-9 h-9 sm:w-11 sm:h-11 bg-purple-100 text-purple-600"
-                : "w-9 h-9 bg-transparent text-gray-300 hover:text-gray-400"
+                ? "w-9 h-9 sm:w-11 sm:h-11 tall-phone-header-circle tall-phone-header-circle-lg bg-purple-100 text-purple-600"
+                : "w-9 h-9 tall-phone-header-circle bg-transparent text-gray-300 hover:text-gray-400"
             }`}
             title={t.enableEmotions}
           >
@@ -1616,7 +1643,7 @@ style={{
           {/* Nowy chat */}
           <button
             onClick={handleNewChat}
-            className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center text-gray-400 hover:text-blue-600 transition-colors text-base sm:text-xl"
+            className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center text-gray-400 hover:text-blue-600 transition-colors text-base sm:text-xl tall-phone-header-btn"
             title={t.newChat}
           >
             <i className="fas fa-plus"></i>
@@ -1627,7 +1654,7 @@ style={{
             onClick={() =>
               setState((prev) => ({ ...prev, showSettings: true }))
             }
-            className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors text-base sm:text-xl"
+            className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors text-base sm:text-xl tall-phone-header-btn"
             title={t.settingsTitle}
           >
             <i className="fas fa-cog"></i>
@@ -1673,7 +1700,11 @@ style={{
         <div ref={chatEndRef} />
       </main>
       {/* --- FOOTER --- */}
-      <footer className={`bg-white border-t ${isMobile && isKeyboardOpen ? "p-2" : "p-3 sm:p-4"}`}>
+      <footer
+        className={`bg-white border-t ${
+          isMobile && isKeyboardOpen ? "px-2 pt-1.5 pb-1" : "p-3 sm:p-4"
+        }`}
+      >
         {state.error && (
           <div className="text-red-500 text-xs mb-2 text-center">
             {state.error}
@@ -1749,7 +1780,15 @@ style={{
           </div>
         </div>
 
-        <div className={`text-[10px] text-gray-300 text-center font-medium ${isMobile && isKeyboardOpen ? "hidden" : ""}`}>
+        <div
+          className={`text-[10px] text-gray-300 text-center font-medium ${
+            isMobile && isKeyboardOpen
+              ? "hidden"
+              : isMobile
+              ? "pb-2"
+              : ""
+          }`}
+        >
           &copy; {new Date().getFullYear()} {t.copyright}
         </div>
       </footer>

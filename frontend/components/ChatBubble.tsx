@@ -16,14 +16,14 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({ message }) => {
       className={`flex w-full mb-3 sm:mb-4 ${isUser ? "justify-end" : "justify-start"}`}
     >
       <div
-        className={`max-w-[85%] sm:max-w-[80%] rounded-2xl px-3 sm:px-4 py-2 sm:py-3 shadow-sm text-sm sm:text-base ${
+        className={`max-w-[85%] sm:max-w-[80%] rounded-2xl px-3 sm:px-4 py-2 sm:py-3 shadow-sm text-sm sm:text-base tall-phone-bubble ${
           isUser
             ? "bg-blue-600 text-white rounded-tr-none"
             : "bg-white text-gray-800 rounded-tl-none border border-gray-100"
         }`}
       >
         {/* ZMIANA: Zamiast <p> używamy <ReactMarkdown> z prostym stylowaniem */}
-        <div className="text-xs sm:text-sm leading-relaxed markdown-body">
+        <div className="text-xs sm:text-sm tall-phone-bubble-markdown leading-relaxed markdown-body">
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={{
