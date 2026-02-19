@@ -36,21 +36,22 @@ Check out the live application here:
       </td>
     </tr>
   </table>
+<div align="center">
+  <br />
   <p><strong>📱 Works also on mobile phones!</strong></p>
   
   <table style="border: none;">
     <tr>
-      <td align="center" style="border: none;">
-        <img src="assets/mobile-1.png" alt="Mobile View 1" width="100%" style="border-radius: 8px;"/>
+      <td align="center" style="border: none; padding: 10px;">
+        <img src="assets/mobile-1.jpg" alt="Mobile View 1" width="320" style="border-radius: 10px; border: 1px solid #eaecef;"/>
       </td>
-      <td align="center" style="border: none;">
-        <img src="assets/mobile-2.png" alt="Mobile View 2" width="100%" style="border-radius: 8px;"/>
-      </td>
-      <td align="center" style="border: none;">
-        <img src="assets/mobile-3.png" alt="Mobile View 3" width="100%" style="border-radius: 8px;"/>
+      <td align="center" style="border: none; padding: 10px;">
+        <img src="assets/mobile-2.jpg" alt="Mobile View 2" width="320" style="border-radius: 10px; border: 1px solid #eaecef;"/>
       </td>
     </tr>
   </table>
+</div>
+<br />
 
 </div>
 <br />
