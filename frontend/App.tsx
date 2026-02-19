@@ -512,32 +512,27 @@ const currentAudioObjRef = useRef<HTMLAudioElement | null>(null); // Aktualny ob
     };
   }, []);
 
-  // Mobile: blokada scrolla strony przy otwartej klawiaturze
+  // Mobile: blokuj scroll całej strony przy otwartej klawiaturze
   useEffect(() => {
-    if (!isMobile || typeof window === "undefined") return;
+    if (!isMobile || typeof document === "undefined") return;
+
+    const root = document.documentElement;
+    const body = document.body;
 
     if (isKeyboardOpen) {
-      scrollLockRef.current = window.scrollY || window.pageYOffset || 0;
-      document.documentElement.style.overflow = "hidden";
-      document.body.style.overflow = "hidden";
-      document.body.style.position = "fixed";
-      document.body.style.top = `-${scrollLockRef.current}px`;
-      document.body.style.width = "100%";
+      root.style.overflow = "hidden";
+      body.style.overflow = "hidden";
+      body.style.height = "100%";
     } else {
-      document.documentElement.style.overflow = "";
-      document.body.style.overflow = "";
-      document.body.style.position = "";
-      document.body.style.top = "";
-      document.body.style.width = "";
-      window.scrollTo(0, scrollLockRef.current || 0);
+      root.style.overflow = "";
+      body.style.overflow = "";
+      body.style.height = "";
     }
 
     return () => {
-      document.documentElement.style.overflow = "";
-      document.body.style.overflow = "";
-      document.body.style.position = "";
-      document.body.style.top = "";
-      document.body.style.width = "";
+      root.style.overflow = "";
+      body.style.overflow = "";
+      body.style.height = "";
     };
   }, [isKeyboardOpen]);
   const [inputText, setInputText] = useState("");
@@ -566,7 +561,6 @@ const currentAudioObjRef = useRef<HTMLAudioElement | null>(null); // Aktualny ob
   const [isBackendConnected, setIsBackendConnected] = useState(false);
   const mobileTtsKickIntervalRef = useRef<number | null>(null);
   const lastAutoRetryRef = useRef(0);
-  const scrollLockRef = useRef(0);
 
   // Funkcja sprawdzająca "zdrowie" serwera
   useEffect(() => {
@@ -1641,7 +1635,7 @@ style={{
         </div>
       </header>
       {/* --- CHAT --- */}
-      <main className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-6 space-y-2 bg-gray-50/50">
+      <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3 sm:p-6 space-y-2 bg-gray-50/50">
         {state.messages.map((msg) => (
           <ChatBubble key={msg.id} message={msg} />
         ))}
