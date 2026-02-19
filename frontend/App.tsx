@@ -433,6 +433,8 @@ const currentAudioObjRef = useRef<HTMLAudioElement | null>(null); // Aktualny ob
 
   const [pendingTtsText, setPendingTtsText] = useState<string | null>(null);
   const [pendingPiperPlayback, setPendingPiperPlayback] = useState(false);
+  const [viewportHeight, setViewportHeight] = useState<number | null>(null);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
 
   // Ref do przechowywania aktualnych ustawień 
   const settingsRef = useRef(state.settings);
@@ -479,6 +481,35 @@ const currentAudioObjRef = useRef<HTMLAudioElement | null>(null); // Aktualny ob
         }
       };
     }
+  }, []);
+
+  // Mobile: dopasowanie wysokości do visualViewport + wykrycie klawiatury
+  useEffect(() => {
+    if (!isMobile || typeof window === "undefined") return;
+
+    const updateViewport = () => {
+      const vv = window.visualViewport;
+      const height = vv?.height ?? window.innerHeight;
+      setViewportHeight(height);
+
+      if (vv) {
+        const keyboardOpen = window.innerHeight - vv.height > 120;
+        setIsKeyboardOpen(keyboardOpen);
+      } else {
+        setIsKeyboardOpen(false);
+      }
+    };
+
+    updateViewport();
+    window.addEventListener("resize", updateViewport);
+    window.visualViewport?.addEventListener("resize", updateViewport);
+    window.visualViewport?.addEventListener("scroll", updateViewport);
+
+    return () => {
+      window.removeEventListener("resize", updateViewport);
+      window.visualViewport?.removeEventListener("resize", updateViewport);
+      window.visualViewport?.removeEventListener("scroll", updateViewport);
+    };
   }, []);
   const [inputText, setInputText] = useState("");
   const [interimTranscript, setInterimTranscript] = useState("");
@@ -1446,7 +1477,10 @@ const splitIntoSentences = (text: string): string[] => {
 
   return (
 <div className="flex flex-col h-full w-full absolute inset-0 sm:static sm:h-full sm:max-w-2xl sm:mx-auto bg-white sm:shadow-2xl overflow-hidden"
-style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
+style={{
+  paddingTop: 'env(safe-area-inset-top)',
+  height: isMobile && viewportHeight ? `${viewportHeight}px` : undefined,
+}}>      {" "}
       {/* --- HEADER --- */}
       <style>{`
         .custom-scrollbar::-webkit-scrollbar {
@@ -1577,7 +1611,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
         </div>
       </header>
       {/* --- CHAT --- */}
-      <main className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-2 bg-gray-50/50">
+      <main className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-6 space-y-2 bg-gray-50/50">
         {state.messages.map((msg) => (
           <ChatBubble key={msg.id} message={msg} />
         ))}
@@ -1691,7 +1725,7 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
           </div>
         </div>
 
-        <div className="text-[10px] text-gray-300 text-center font-medium">
+        <div className={`text-[10px] text-gray-300 text-center font-medium ${isMobile && isKeyboardOpen ? "hidden" : ""}`}>
           &copy; {new Date().getFullYear()} {t.copyright}
         </div>
       </footer>
