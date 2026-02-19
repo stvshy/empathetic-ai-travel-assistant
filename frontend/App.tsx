@@ -1784,84 +1784,93 @@ style={{ paddingTop: 'env(safe-area-inset-top)' }}>      {" "}
                   />
                 </div>
                 <div className="grid grid-cols-3 gap-2">
-                  <button
-                    onClick={() =>
-                      setState((prev) => ({
-                        ...prev,
-                        settings: {
-                          ...prev.settings,
-                          sttModel: webSpeechSupport.stt ? "browser" : "whisper",
-                          ttsModel: webSpeechSupport.tts ? "browser" : "piper",
-                          enableEmotions: false,
-                          enableTTS: false,
-                        },
-                      }))
-                    }
-                    className={`px-3 py-2 rounded-2xl border-2 text-left transition-all ${
-                      activeProfile() === "fast"
-                        ? "border-blue-500 bg-blue-50"
-                        : "border-gray-100 bg-white"
-                    }`}
-                  >
-                    <div className="font-semibold text-gray-800 text-[13px] mb-2 whitespace-nowrap">
-                      {t.profileFast}
-                    </div>
-                    <div className="text-[11.5px] text-gray-500 leading-tight">
+                  <div className="flex flex-col items-center">
+                    <button
+                      onClick={() =>
+                        setState((prev) => ({
+                          ...prev,
+                          settings: {
+                            ...prev.settings,
+                            sttModel: webSpeechSupport.stt ? "browser" : "whisper",
+                            ttsModel: webSpeechSupport.tts ? "browser" : "piper",
+                            enableEmotions: false,
+                            enableTTS: false,
+                          },
+                        }))
+                      }
+                      className={`w-full px-2 sm:px-3 py-2 rounded-2xl border-2 transition-all flex flex-col items-center text-center ${
+                        activeProfile() === "fast"
+                          ? "border-blue-500 bg-blue-50"
+                          : "border-gray-100 bg-white"
+                      }`}
+                    >
+                      <div className="font-semibold text-gray-800 text-[12px] sm:text-[13px] mb-0.5 whitespace-nowrap">
+                        {state.settings.language === "pl" ? "Szybki" : "Fast"}
+                      </div>
+                      <div className="text-xl">⚡</div>
+                    </button>
+                    <div className="text-[8.5px] sm:text-[10px] text-gray-400 leading-tight mt-1.5 text-center">
                       {t.profileFastDesc}
                     </div>
-                  </button>
-                  <button
-                    onClick={() =>
-                      setState((prev) => ({
-                        ...prev,
-                        settings: {
-                          ...prev.settings,
-                          sttModel: webSpeechSupport.stt ? "browser" : "whisper",
-                          ttsModel: "edge",
-                          enableEmotions: false,
-                          enableTTS: true,
-                        },
-                      }))
-                    }
-                    className={`px-3 py-2 rounded-2xl border-2 text-left transition-all ${
-                      activeProfile() === "normal"
-                        ? "border-green-500 bg-green-50"
-                        : "border-gray-100 bg-white"
-                    }`}
-                  >
-                    <div className="font-semibold text-gray-800 text-[13px] mb-2 whitespace-nowrap">
-                      {t.profileNormal}
-                    </div>
-                    <div className="text-[11.5px] text-gray-500 leading-tight">
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <button
+                      onClick={() =>
+                        setState((prev) => ({
+                          ...prev,
+                          settings: {
+                            ...prev.settings,
+                            sttModel: webSpeechSupport.stt ? "browser" : "whisper",
+                            ttsModel: "edge",
+                            enableEmotions: false,
+                            enableTTS: true,
+                          },
+                        }))
+                      }
+                      className={`w-full px-2 sm:px-3 py-2 rounded-2xl border-2 transition-all flex flex-col items-center text-center ${
+                        activeProfile() === "normal"
+                          ? "border-green-500 bg-green-50"
+                          : "border-gray-100 bg-white"
+                      }`}
+                    >
+                      <div className="font-semibold text-gray-800 text-[12px] sm:text-[13px] mb-0.5 whitespace-nowrap">
+                        {state.settings.language === "pl" ? "Normalny" : "Normal"}
+                      </div>
+                      <div className="text-xl">👍</div>
+                    </button>
+                    <div className="text-[8.5px] sm:text-[10px] text-gray-400 leading-tight mt-1.5 text-center">
                       {t.profileNormalDesc}
                     </div>
-                  </button>
-                  <button
-                    onClick={() =>
-                      setState((prev) => ({
-                        ...prev,
-                        settings: {
-                          ...prev.settings,
-                          sttModel: "whisper",
-                          ttsModel: "edge", // TTS Edge jest bardziej ekspresyjny, więc lepiej pasuje do profilu empatycznego
-                          enableEmotions: true,
-                          enableTTS: true,
-                        },
-                      }))
-                    }
-                    className={`px-3 py-2 rounded-2xl border-2 text-left transition-all ${
-                      activeProfile() === "empathetic"
-                        ? "border-purple-500 bg-purple-50"
-                        : "border-gray-100 bg-white"
-                    }`}
-                  >
-                    <div className="font-semibold text-gray-800 text-[13px] mb-2 whitespace-nowrap">
-                      {t.profileEmp}
-                    </div>
-                    <div className="text-[11.5px] text-gray-500 leading-tight">
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <button
+                      onClick={() =>
+                        setState((prev) => ({
+                          ...prev,
+                          settings: {
+                            ...prev.settings,
+                            sttModel: "whisper",
+                            ttsModel: "edge", // TTS Edge jest bardziej ekspresyjny, więc lepiej pasuje do profilu empatycznego
+                            enableEmotions: true,
+                            enableTTS: true,
+                          },
+                        }))
+                      }
+                      className={`w-full px-2 sm:px-3 py-2 rounded-2xl border-2 transition-all flex flex-col items-center text-center ${
+                        activeProfile() === "empathetic"
+                          ? "border-purple-500 bg-purple-50"
+                          : "border-gray-100 bg-white"
+                      }`}
+                    >
+                      <div className="font-semibold text-gray-800 text-[12px] sm:text-[13px] mb-0.5 whitespace-nowrap">
+                        {state.settings.language === "pl" ? "Empatyczny" : "Empathetic"}
+                      </div>
+                      <div className="text-xl">❤️</div>
+                    </button>
+                    <div className="text-[8.5px] sm:text-[10px] text-gray-400 leading-tight mt-1.5 text-center">
                       {t.profileEmpDesc}
                     </div>
-                  </button>
+                  </div>
                 </div>
               </div>
 
