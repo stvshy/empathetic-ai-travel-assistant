@@ -511,6 +511,35 @@ const currentAudioObjRef = useRef<HTMLAudioElement | null>(null); // Aktualny ob
       window.visualViewport?.removeEventListener("scroll", updateViewport);
     };
   }, []);
+
+  // Mobile: blokada scrolla strony przy otwartej klawiaturze
+  useEffect(() => {
+    if (!isMobile || typeof window === "undefined") return;
+
+    if (isKeyboardOpen) {
+      scrollLockRef.current = window.scrollY || window.pageYOffset || 0;
+      document.documentElement.style.overflow = "hidden";
+      document.body.style.overflow = "hidden";
+      document.body.style.position = "fixed";
+      document.body.style.top = `-${scrollLockRef.current}px`;
+      document.body.style.width = "100%";
+    } else {
+      document.documentElement.style.overflow = "";
+      document.body.style.overflow = "";
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.width = "";
+      window.scrollTo(0, scrollLockRef.current || 0);
+    }
+
+    return () => {
+      document.documentElement.style.overflow = "";
+      document.body.style.overflow = "";
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.width = "";
+    };
+  }, [isKeyboardOpen]);
   const [inputText, setInputText] = useState("");
   const [interimTranscript, setInterimTranscript] = useState("");
 
@@ -537,6 +566,7 @@ const currentAudioObjRef = useRef<HTMLAudioElement | null>(null); // Aktualny ob
   const [isBackendConnected, setIsBackendConnected] = useState(false);
   const mobileTtsKickIntervalRef = useRef<number | null>(null);
   const lastAutoRetryRef = useRef(0);
+  const scrollLockRef = useRef(0);
 
   // Funkcja sprawdzająca "zdrowie" serwera
   useEffect(() => {
@@ -1649,7 +1679,7 @@ style={{
         <div ref={chatEndRef} />
       </main>
       {/* --- FOOTER --- */}
-      <footer className="p-3 sm:p-4 bg-white border-t">
+      <footer className={`bg-white border-t ${isMobile && isKeyboardOpen ? "p-2" : "p-3 sm:p-4"}`}>
         {state.error && (
           <div className="text-red-500 text-xs mb-2 text-center">
             {state.error}
