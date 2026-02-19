@@ -1,10 +1,11 @@
+--index-url https://download.pytorch.org/whl/cpu
+torch
+torchaudio
 Flask
 Flask-Cors
 python-dotenv
 openai-whisper
 transformers
-torch --index-url https://download.pytorch.org/whl/cpu
-torchaudio --index-url https://download.pytorch.org/whl/cpu
 google-genai
 ffmpeg-python
 numpy
