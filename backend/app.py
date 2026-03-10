@@ -38,6 +38,11 @@ CORS(app, supports_credentials=True)
 API_KEY = os.getenv("GEMINI_API_KEY")
 client = genai.Client(api_key=API_KEY)
 
+
+class ApiLimitExceededError(Exception):
+    """Raised when upstream LLM provider reports quota/rate exhaustion."""
+
+
 # --- KONFIGURACJA PIPER TTS (Nowe) ---
 BASE = Path(__file__).resolve().parent
 
@@ -269,8 +274,25 @@ def generate_gemini_response(user_text, language="pl", emotion=None, history=Non
         
         return clean_response.strip()
     except Exception as e:
+        error_text = str(e).lower()
+        is_limit_error = any(
+            token in error_text
+            for token in [
+                "429",
+                "quota",
+                "rate limit",
+                "too many requests",
+                "resource_exhausted",
+                "daily limit",
+            ]
+        )
+
+        if is_limit_error:
+            logger.warning(f"Gemini quota/rate limit reached: {e}")
+            raise ApiLimitExceededError("API daily limit exceeded") from e
+
         logger.error(f"Gemini Error: {e}")
-        return "Przepraszam, wystąpił błąd po stronie AI." if language == "pl" else "Sorry, an AI error occurred."
+        raise
     
 # --- ENDPOINT 1: CZAT TEKSTOWY (Szybki) ---
 @app.route("/chat", methods=["POST"])
@@ -289,12 +311,21 @@ def chat():
     if len(history) > 0:
         print(f"📋 Szczegóły historii: {history}")
 
-    ai_response = generate_gemini_response(user_text, language=language, emotion=None, history=history)
-    
-    return jsonify({
-        "response": ai_response,
-        "emotion_detected": None
-    })
+    try:
+        ai_response = generate_gemini_response(user_text, language=language, emotion=None, history=history)
+        
+        return jsonify({
+            "response": ai_response,
+            "emotion_detected": None
+        })
+    except ApiLimitExceededError:
+        return jsonify({
+            "error": "API daily limit exceeded",
+            "code": "API_DAILY_LIMIT_EXCEEDED"
+        }), 429
+    except Exception as e:
+        logger.error(f"Błąd endpointu /chat: {e}")
+        return jsonify({"error": "AI processing error"}), 500
 
 # --- ENDPOINT 2: AUDIO (Wolny + Emocje) ---
 @app.route("/process_audio", methods=["POST"])
@@ -341,6 +372,11 @@ def process_audio():
             "response": ai_response,
             "emotion_detected": top_emotion
         })
+    except ApiLimitExceededError:
+        return jsonify({
+            "error": "API daily limit exceeded",
+            "code": "API_DAILY_LIMIT_EXCEEDED"
+        }), 429
     except subprocess.CalledProcessError as e:
         logger.error(f"Błąd FFmpeg: {e}")
         return jsonify({"error": "Błąd konwersji audio (FFmpeg)"}), 500

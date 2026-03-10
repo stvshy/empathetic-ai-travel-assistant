@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Message, AppState, Settings } from "./types";
 import ChatBubble from "./components/ChatBubble";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { hyphenateHTMLSync as hyphenatePl } from 'hyphen/pl';
 import { hyphenateHTMLSync as hyphenateEn } from 'hyphen/en';
 
@@ -77,6 +79,8 @@ const TRANSLATIONS = {
     mobileListeningHint: "Słucham... (przestań mówić, aby wysłać)", 
     processing: "Przetwarzam...",
     serverError: "Błąd serwera.",
+    apiDailyLimitError:
+      "Przekroczono dzienny limit API chata przez innych użytkowników. Spróbuj [wersji lokalnej](https://github.com/stvshy/empathetic-ai-travel-assistant) lub wróć jutro.",
     micError: "Błąd mikrofonu",
     backendError: "Błąd backendu.",
     settingsTitle: "Ustawienia",
@@ -130,6 +134,8 @@ const TRANSLATIONS = {
     processing: "Processing...",
     mobileListeningHint: "Listening... (pause to send)",
     serverError: "Server error.",
+    apiDailyLimitError:
+      "The chat API daily limit has been exceeded by other users. Try the [local version](https://github.com/stvshy/empathetic-ai-travel-assistant) or come back tomorrow.",
     micError: "Microphone error",
     backendError: "Backend error.",
     settingsTitle: "Settings",
@@ -539,6 +545,10 @@ const currentAudioObjRef = useRef<HTMLAudioElement | null>(null); // Aktualny ob
   const [interimTranscript, setInterimTranscript] = useState("");
 
   const t = TRANSLATIONS[state.settings.language]; // Skrót do tłumaczeń
+  const isApiDailyLimitErrorActive =
+    state.error === TRANSLATIONS.pl.apiDailyLimitError ||
+    state.error === TRANSLATIONS.en.apiDailyLimitError;
+  const displayedError = isApiDailyLimitErrorActive ? t.apiDailyLimitError : state.error;
 
   // --- REFS ---
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -1173,7 +1183,28 @@ const splitIntoSentences = (text: string): string[] => {
 
       console.log("✅ Odpowiedź z backendu:", res.status);
 
-      const data = await res.json();
+      let data: any = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
+      }
+
+      if (!res.ok) {
+        const backendCode = data?.code;
+        const backendErrorText = String(data?.error || data?.message || "").toLowerCase();
+        const isApiDailyLimit =
+          res.status === 429 ||
+          backendCode === "API_DAILY_LIMIT_EXCEEDED" ||
+          /quota|rate limit|too many requests|resource_exhausted|daily limit/.test(backendErrorText);
+
+        throw new Error(isApiDailyLimit ? t.apiDailyLimitError : t.serverError);
+      }
+
+      if (!data?.response) {
+        throw new Error(t.serverError);
+      }
+
       const aiMsg: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
@@ -1188,10 +1219,11 @@ const splitIntoSentences = (text: string): string[] => {
       }));
       speakText(data.response);
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : t.serverError;
       setState((prev) => ({
         ...prev,
         isProcessing: false,
-        error: t.serverError,
+        error: errorMessage,
       }));
     }
   };
@@ -1699,18 +1731,48 @@ style={{
         )}
         <div ref={chatEndRef} />
       </main>
+
+      {state.error && (
+        <div className="absolute left-1/2 -translate-x-1/2 bottom-[7.5rem] sm:bottom-[8.5rem] z-40 w-[92%] sm:w-[80%] max-w-xl animate-in fade-in slide-in-from-bottom-2 duration-200">
+          <div className="rounded-2xl border border-red-200 bg-red-50/95 backdrop-blur-sm shadow-lg px-4 py-3">
+            <div className="flex items-start gap-3">
+              <i className="fas fa-circle-exclamation text-red-500 mt-0.5"></i>
+              <div className="flex-1 text-red-700 text-xs sm:text-sm leading-relaxed">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    p: ({ node, ...props }) => <span {...props} />,
+                    a: ({ node, ...props }) => (
+                      <a
+                        {...props}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline font-semibold"
+                      />
+                    ),
+                  }}
+                >
+                  {displayedError}
+                </ReactMarkdown>
+              </div>
+              <button
+                onClick={() => setState((prev) => ({ ...prev, error: null }))}
+                className="text-red-400 hover:text-red-600 transition-colors"
+                aria-label="Close error popup"
+              >
+                <i className="fas fa-xmark"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* --- FOOTER --- */}
       <footer
         className={`bg-white border-t ${
           isMobile && isKeyboardOpen ? "px-2 pt-1.5 pb-1" : "p-3 sm:p-4"
         }`}
       >
-        {state.error && (
-          <div className="text-red-500 text-xs mb-2 text-center">
-            {state.error}
-          </div>
-        )}
-
         {/* Mobile fallback: jeśli Web TTS zablokowany, pokaż przycisk do ręcznego odtworzenia */}
         {isMobile && state.settings.enableTTS && (
           ((state.settings.ttsModel === "browser" && pendingTtsText) || (state.settings.ttsModel === "piper" && pendingPiperPlayback))
