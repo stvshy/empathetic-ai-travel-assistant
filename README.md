@@ -4,6 +4,7 @@
   <img src="https://img.shields.io/badge/Status-Live_&_Production_Ready-success" alt="Status" />
   <img src="https://img.shields.io/badge/Stack-React_|_TypeScript_|_Python-blue" alt="Tech Stack" />
   <img src="https://img.shields.io/badge/AI-Gemini_Flash_Lite-orange" alt="AI Model" />
+  <img src="https://img.shields.io/badge/Languages-EN%20%7C%20PL-blueviolet" alt="Languages" />
 </div>
 
 <br />
@@ -36,6 +37,23 @@ Check out the live application here:
       </td>
     </tr>
   </table>
+<div align="center">
+  <br />
+  <p><strong>📱 Works also on mobile phones!</strong></p>
+  
+  <table style="border: none;">
+    <tr>
+      <td align="center" style="border: none; padding: 10px;">
+        <img src="assets/mobile-1.jpg" alt="Mobile View 1" width="320" style="border-radius: 10px; border: 1px solid #eaecef;"/>
+      </td>
+      <td align="center" style="border: none; padding: 10px;">
+        <img src="assets/mobile-2.jpg" alt="Mobile View 2" width="320" style="border-radius: 10px; border: 1px solid #eaecef;"/>
+      </td>
+    </tr>
+  </table>
+</div>
+<br />
+
 </div>
 <br />
 <!-- --- SCREENSHOTS SECTION END --- -->
@@ -53,8 +71,9 @@ The application operates as a **Universal Hybrid System**. It can run fully loca
 
 ### ✨ Key Features
 
-- 🎤 **Advanced Voice Interface:** Uses Web Speech API or OpenAI Whisper for accurate speech-to-text.
+- 🎤 **Advanced Voice Interface:** Uses the Web Speech API or OpenAI Whisper to accurately convert speech to text. For reading LLM messages, you can choose between Piper, Microsoft Edge TTS, or Web TTS, which provide realistic voice responses.
 - 🧠 **Emotion Recognition (SER):** Detects if you are happy, sad, or uncertain to adjust the travel advice accordingly.
+- **Multilingual Support:** The assistant fully supports both **English** and **Polish** languages.
 - ⚡ **Real-time Responses:** Powered by Google Gemini Flash Lite.
 - 🎨 **Modern UI:** Built with Tailwind CSS for a clean, responsive experience.
 
@@ -66,13 +85,13 @@ The application operates as a **Universal Hybrid System**. It can run fully loca
 - **Core:** Python 3.10+, Flask
 - **Speech-to-Text:** OpenAI Whisper
 - **Emotion Analysis:** HuggingFace Transformers (Wav2Vec)
-- **Text-to-Speech:** Piper TTS
+- **Text-to-Speech:** Piper TTS, Microsoft Edge TTS
 - **Tools:** FFmpeg, NumPy
 
 ### Frontend
 - **Core:** React 19, TypeScript, Vite
 - **Styling:** Tailwind CSS
-- **API:** Web Speech API (Input fallback)
+- **API:** Web Speech API 
 
 ### Infrastructure & Deployment
 - **Containerization:** Docker
@@ -196,7 +215,7 @@ Common model names:
 - [x] Core UI & LLM Integration.
 - [x] Python Backend & Whisper Integration.
 - [x] Emotion Recognition (Wav2Vec) & Logic.
-- [x] Server-side Text-to-Speech (Piper).
+- [x] Multi-engine Text-to-Speech (Piper & Edge TTS).
 - [x] Cloud Deployment (Docker/HF/Vercel).
 
 ---
