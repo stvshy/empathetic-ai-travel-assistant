@@ -489,20 +489,25 @@ def tts():
         return jsonify({"error": str(e)}), 500
     
 if __name__ == '__main__':
-    # 1. Sprawdzamy, czy jesteśmy w chmurze (Hugging Face ustawia zmienną PORT)
-    is_hugging_face = "PORT" in os.environ
+    # 1. Sprawdzamy kilka zmiennych charakterystycznych dla Hugging Face
+    # HF zawsze ustawia SPACE_ID. Często też ustawia PORT.
+    is_hf = os.environ.get("SPACE_ID") is not None or os.environ.get("PORT") is not None
     
-    # 2. Wybieramy port: 7860 dla HF, 5000 dla localhost
-    port = int(os.environ.get("PORT", 5000))
+    # 2. Port: 
+    # Jeśli jesteśmy na HF, portem domyślnym MUSI być 7860.
+    # Jeśli lokalnie, domyślnym portem będzie 5000.
+    default_port = 7860 if is_hf else 5000
+    port = int(os.environ.get("PORT", default_port))
     
-    # 3. Wybieramy tryb debugowania: 
-    # Lokalnie (Windows) chcemy True, żeby kod sam się odświeżał.
-    # Na Hugging Face (Linux) MUSI być False, żeby nie dublować procesów i nie przekroczyć RAMu.
-    debug_mode = False if is_hugging_face else True
+    # 3. Debug:
+    # Wymuszamy False, jeśli wykryto Hugging Face.
+    debug_mode = not is_hf
     
-    print(f"🚀 Uruchamiam serwer...")
-    print(f"📍 Port: {port}")
-    print(f"🛠️  Debug Mode: {debug_mode}")
-    print(f"💻 System: {platform.system()}")
+    print(f"--- STARTING SERVER ---")
+    print(f"Hugging Face: {is_hf}")
+    print(f"Port: {port}")
+    print(f"Debug: {debug_mode}")
+    print(f"-----------------------")
     
-    app.run(host='0.0.0.0', port=port, debug=debug_mode)
+    # use_reloader=False to krytyczne zabezpieczenie na HF przed błędem "Timed out"
+    app.run(host='0.0.0.0', port=port, debug=debug_mode, use_reloader=debug_mode)
