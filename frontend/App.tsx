@@ -5,7 +5,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { hyphenateHTMLSync as hyphenatePl } from 'hyphen/pl';
 import { hyphenateHTMLSync as hyphenateEn } from 'hyphen/en';
-
+import travelIcon from "/travel-ai-icon.png";
 // --- WYKRYWANIE URZĄDZENIA ---
 const getIsMobile = () => {
   if (typeof window === "undefined") return false;
@@ -1577,11 +1577,15 @@ style={{
       `}</style>
       <header className="bg-white border-b px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between z-10">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <div className="bg-blue-100 p-1.5 sm:p-2 rounded-xl text-blue-600 flex-shrink-0">
-            <i className="fas fa-plane-departure text-base sm:text-xl"></i>
+          <div className="w-8 h-8 sm:w-[43px] sm:h-[43px] flex-shrink-0 flex items-center justify-center">
+            <img
+              src={travelIcon} 
+              alt="Travel Assistant Icon"
+              className="w-full h-full object-contain rounded-xl shadow-sm"
+            />
           </div>
           <div className="min-w-0">
-            {/* Tytuł: responsive */}
+            {/* Tytuł */}
             <h1 className="font-bold text-gray-800 text-sm sm:text-lg tall-phone-title truncate">
               {t.title}
             </h1>
@@ -1699,7 +1703,7 @@ style={{
           <ChatBubble key={msg.id} message={msg} />
         ))}
 
-        {/* UNIWERSALNY SZARY DYMEK (Styl PC, Logika hybrydowa) */}
+        {/* UNIWERSALNY SZARY DYMEK */}
         {(interimTranscript || (isMobile && state.isRecording && inputText)) && (
           <div className="flex justify-end mb-4">
             <div className="max-w-[80%] rounded-2xl px-4 py-3 bg-gray-100 text-gray-500 rounded-tr-none border border-gray-200 opacity-80 italic">
