@@ -1,5 +1,3 @@
-/// <reference types="vite/client" />
-
 declare module 'hyphen/pl' {
   export const hyphenateHTMLSync: (html: string) => string;
 }

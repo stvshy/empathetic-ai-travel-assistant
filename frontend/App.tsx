@@ -116,6 +116,22 @@ const TRANSLATIONS = {
     copyright: "Mateusz Staszków. Wszelkie prawa zastrzeżone.",
     webSttNotSupported: "ℹ️ Web Speech Recognition nie jest obsługiwany w tej przeglądarce",
     webTtsNotSupported: "ℹ️ Web Speech Synthesis nie jest obsługiwany w tej przeglądarce",
+    chatHistory: "Historia czatów",
+    comingSoon: "Wkrótce",
+    login: "Zaloguj się",
+    register: "Zarejestruj się",
+    account: "Konto",
+    authComingSoon: "Logowanie i rejestracja będą dostępne wkrótce",
+    historyComingSoon: "Historia czatów będzie dostępna wkrótce po wdrożeniu logowania",
+    historyCloudSync: "Synchronizacja w chmurze",
+    historyCloudDesc: "Twoja historia podróży i czatów będzie bezpiecznie synchronizowana na wszystkich Twoich urządzeniach.",
+    mockHistory1: "Weekend w Rzymie – plan",
+    mockHistory2: "Wycieczka po Tokio i Kioto",
+    mockHistory3: "Tanie loty i plaże w Grecji",
+    activeChat: "Czat z asystentem",
+    profile: "Profil",
+    hideSidebar: "Zwiń panel boczny",
+    showSidebar: "Rozwiń panel boczny",
     helpQuickProfiles:
       "**Szybki:** **Web STT** + **Web TTS**. Web TTS jest **najszybszym** modelem głosu, ale jego jakość zależy od przeglądarki. Różnicę zauważysz głównie przy **odczytywaniu odpowiedzi LLM przez TTS**. Czas odpowiedzi tekstowej pozostaje taki sam jak w trybie Normalnym. Model **nie wykrywa emocji** użytkownika podczas mówienia — wykrywa tylko słowa i odpowiada na ich podstawie.\n\n**Normalny:** **Edge TTS** + **Web STT**. Najlepszy **kompromis między jakością a szybkością** odpowiedzi LLM czytanej przez TTS. Model **nie wykrywa emocji** użytkownika podczas mówienia — wykrywa tylko słowa i odpowiada na ich podstawie.\n\n**Empatyczny:** **Whisper STT** + **Edge TTS**. Whisper jest **wymagany do wykrywania emocji**, ale **wydłuża czas odpowiedzi** i wymaga **ręcznego wciśnięcia przycisku** po skończeniu mówienia (nie działa automatycznie). Model **wykrywa emocje** i przekazuje je do LLM, a LLM **dopasowuje styl odpowiedzi** do wykrytych emocji użytkownika.",
     helpAdvanced:
@@ -172,6 +188,22 @@ const TRANSLATIONS = {
     copyright: "Mateusz Staszków. All rights reserved.",
     webSttNotSupported: "ℹ️ Web Speech Recognition is not supported in this browser",
     webTtsNotSupported: "ℹ️ Web Speech Synthesis is not supported in this browser",
+    chatHistory: "Chat History",
+    comingSoon: "Coming soon",
+    login: "Log In",
+    register: "Sign Up",
+    account: "Account",
+    authComingSoon: "Login and registration will be available soon",
+    historyComingSoon: "Chat history will be available soon after sign in",
+    historyCloudSync: "Cloud Synchronization",
+    historyCloudDesc: "Your trip plans and chat history will be safely synced across all your devices.",
+    mockHistory1: "Weekend in Rome – trip plan",
+    mockHistory2: "Tokyo & Kyoto travel guide",
+    mockHistory3: "Cheap flights & beaches in Greece",
+    activeChat: "Chat with Assistant",
+    profile: "Profile",
+    hideSidebar: "Collapse sidebar",
+    showSidebar: "Expand sidebar",
     helpQuickProfiles:
       "**Fast:** **Web STT** + **Web TTS**. Web TTS is the **fastest** voice model, but its quality depends on your browser. You will mainly notice a difference when **LLM replies are read aloud by TTS**. The text response time stays the same as in Normal mode. The model **does not detect emotions** — it only detects spoken words and responds to them.\n\n**Normal:** **Edge TTS** + **Web STT**. The best **compromise between quality and speed** of LLM feedback read by TTS. The model **does not detect emotions** — it only detects spoken words and responds to them.\n\n**Empathetic:** **Whisper STT** + **Edge TTS**. Whisper is **required for emotion detection**, but it **increases response time** and requires **pressing a button** when you finish speaking (it does not work automatically). The model **detects emotions** and sends them to the LLM, and the LLM **adjusts the response style** to the detected user emotions.",
     helpAdvanced:
@@ -441,6 +473,7 @@ const currentAudioObjRef = useRef<HTMLAudioElement | null>(null); // Aktualny ob
   const [pendingPiperPlayback, setPendingPiperPlayback] = useState(false);
   const [viewportHeight, setViewportHeight] = useState<number | null>(null);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   // Ref do przechowywania aktualnych ustawień 
   const settingsRef = useRef(state.settings);
@@ -1532,12 +1565,13 @@ const splitIntoSentences = (text: string): string[] => {
   };
 
   return (
-<div className="flex flex-col h-full w-full absolute inset-0 sm:static sm:h-full sm:max-w-2xl sm:mx-auto bg-white sm:shadow-2xl overflow-hidden"
-style={{
-  paddingTop: 'env(safe-area-inset-top)',
-  height: isMobile && viewportHeight ? `${viewportHeight}px` : undefined,
-}}>      {" "}
-      {/* --- HEADER --- */}
+    <div
+      className="flex h-full w-full absolute inset-0 bg-white overflow-hidden"
+      style={{
+        paddingTop: 'env(safe-area-inset-top)',
+        height: isMobile && viewportHeight ? `${viewportHeight}px` : undefined,
+      }}
+    >
       <style>{`
         .custom-scrollbar::-webkit-scrollbar {
           width: 8px;
@@ -1546,7 +1580,7 @@ style={{
           background: transparent;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-          background-color: rgba(156, 163, 175, 0.5);
+          background-color: rgba(156, 163, 175, 0.4);
           border-radius: 20px;
         }
         @media (min-height: 900px) and (max-width: 500px) {
@@ -1575,289 +1609,501 @@ style={{
           }
         }
       `}</style>
-      <header className="bg-white border-b px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between z-10">
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <div className="w-8 h-8 sm:w-[43px] sm:h-[43px] flex-shrink-0 flex items-center justify-center">
-            <img
-              src={travelIcon} 
-              alt="Travel Assistant Icon"
-              className="w-full h-full object-contain rounded-xl shadow-sm"
-            />
-          </div>
-          <div className="min-w-0">
-            {/* Tytuł */}
-            <h1 className="font-bold text-gray-800 text-sm sm:text-lg tall-phone-title truncate">
-              {t.title}
-            </h1>
 
-            {/* Status Zmienny */}
-            <p
-              className={`text-[10px] sm:text-xs tall-phone-status font-medium flex items-center gap-1 ${
-                isBackendConnected ? "text-green-500" : "text-red-500"
-              } truncate`}
+      {/* --- PASEK BOCZNY (TYLKO DLA WIĘKSZYCH EKRANÓW: TABLET, LAPTOP, MONITOR) --- */}
+      <aside
+        className={`${
+          isSidebarOpen ? "md:w-64 lg:w-72 xl:w-80" : "md:w-0"
+        } hidden md:flex flex-col h-full bg-slate-50/85 border-r border-gray-200/80 transition-all duration-300 ease-in-out overflow-hidden z-20 flex-shrink-0 select-none`}
+      >
+        <div className="w-64 lg:w-72 xl:w-80 flex flex-col h-full flex-shrink-0">
+          {/* NAGŁÓWEK PASKU BOCZNEGO: Logo + Nazwa + Status + Przycisk zwijania */}
+          <div className="p-3.5 lg:p-4 border-b border-gray-200/80 flex items-center justify-between bg-white/70 backdrop-blur-sm">
+            <div className="flex items-center gap-2.5 lg:gap-3 min-w-0">
+              <div className="w-9 h-9 lg:w-10 lg:h-10 flex-shrink-0 flex items-center justify-center">
+                <img
+                  src={travelIcon}
+                  alt="Travel Assistant Icon"
+                  className="w-full h-full object-contain rounded-xl shadow-sm"
+                />
+              </div>
+              <div className="min-w-0">
+                <h2 className="font-bold text-gray-800 text-sm lg:text-base leading-tight truncate">
+                  {t.title}
+                </h2>
+                <p
+                  className={`text-[10.5px] font-medium flex items-center gap-1.5 mt-0.5 ${
+                    isBackendConnected ? "text-green-500" : "text-red-500"
+                  } truncate`}
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                      isBackendConnected ? "bg-green-500 animate-pulse" : "bg-red-500"
+                    }`}
+                  ></span>
+                  <span className="truncate">{isBackendConnected ? t.available : t.unavailable}</span>
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setIsSidebarOpen(false)}
+              className="w-8 h-8 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 flex items-center justify-center transition-colors"
+              title={t.hideSidebar}
             >
-              <span
-                className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                  isBackendConnected
-                    ? "bg-green-500 animate-pulse"
-                    : "bg-red-500"
-                }`}
-              ></span>
-              <span className="truncate">{isBackendConnected ? t.available : t.unavailable}</span>
-            </p>
+              <i className="fas fa-chevron-left text-xs"></i>
+            </button>
           </div>
-        </div>
 
-        <div className="flex items-center gap-1 flex-shrink-0">
-          {/* Szybkie ustawienia */}
-          <button
-            onClick={() => {
-              if (state.settings.enableTTS && 'speechSynthesis' in window) window.speechSynthesis.cancel();
-              
-              const nextEnable = !state.settings.enableTTS;
-              if (nextEnable) unlockWebTtsIfNeeded();
+          {/* PRZYCISKI AKCJI: Nowy Czat & Ustawienia */}
+          <div className="p-3 lg:p-4 space-y-2 border-b border-gray-200/60 bg-white/40">
+            <button
+              onClick={handleNewChat}
+              className="w-full py-2.5 px-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-medium text-xs lg:text-sm flex items-center justify-center gap-2 shadow-sm shadow-blue-200 transition-all group"
+            >
+              <i className="fas fa-plus text-xs group-hover:rotate-90 transition-transform"></i>
+              <span>{t.newChat}</span>
+            </button>
 
-              setState((prev) => ({
-                ...prev,
-                settings: {
-                  ...prev.settings,
-                  enableTTS: nextEnable,
-                  ttsModel:
-                    nextEnable && !webSpeechSupport.tts
-                      ? "piper"
-                      : prev.settings.ttsModel,
-                },
-              }));
-            }}
-            className={`rounded-full flex items-center justify-center transition-all text-base sm:text-lg tall-phone-header-btn ${
-              state.settings.enableTTS
-                ? "w-9 h-9 sm:w-11 sm:h-11 tall-phone-header-circle tall-phone-header-circle-lg bg-green-100 text-green-600"
-                : "w-9 h-9 tall-phone-header-circle bg-transparent text-gray-300 hover:text-gray-400"
-            }`}
-            title={t.enableTTS}
-          >
-            <i
-              className={`fas ${
-                state.settings.enableTTS ? "fa-volume-high" : "fa-volume-xmark"
-              }`}
-            ></i>
-          </button>
+            <button
+              onClick={() => setState((prev) => ({ ...prev, showSettings: true }))}
+              className="w-full py-2 px-3 rounded-xl border border-gray-200 hover:border-gray-300 bg-white hover:bg-gray-50 text-gray-700 text-xs font-medium flex items-center justify-between shadow-2xs transition-all"
+            >
+              <div className="flex items-center gap-2">
+                <i className="fas fa-cog text-gray-400"></i>
+                <span>{t.settingsTitle}</span>
+              </div>
+              <i className="fas fa-chevron-right text-[9px] text-gray-300"></i>
+            </button>
+          </div>
 
-          <button
-            onClick={() =>
-              setState((prev) => {
-                const nextEnableEmotions = !prev.settings.enableEmotions;
-                return {
-                  ...prev,
-                  settings: {
-                    ...prev.settings,
-                    enableEmotions: nextEnableEmotions,
-                    sttModel: nextEnableEmotions
-                      ? "whisper"
-                      : (webSpeechSupport.stt ? "browser" : "whisper"),
-                  },
-                };
-              })
-            }
-            className={`rounded-full flex items-center justify-center transition-all text-base sm:text-lg tall-phone-header-btn ${
-              state.settings.enableEmotions
-                ? "w-9 h-9 sm:w-11 sm:h-11 tall-phone-header-circle tall-phone-header-circle-lg bg-purple-100 text-purple-600"
-                : "w-9 h-9 tall-phone-header-circle bg-transparent text-gray-300 hover:text-gray-400"
-            }`}
-            title={t.enableEmotions}
-          >
-            <i
-              className={`fas ${
-                state.settings.enableEmotions ? "fa-face-smile" : "fa-face-meh"
-              }`}
-            ></i>
-          </button>
+          {/* ZABLOKOWANA SEKCJA HISTORII CZATÓW */}
+          <div className="flex-1 overflow-y-auto p-3 lg:p-4 space-y-2.5 custom-scrollbar">
+            <div className="flex items-center justify-between px-1">
+              <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                <i className="fas fa-clock-rotate-left text-[11px]"></i>
+                {t.chatHistory}
+              </span>
+              <span className="inline-flex items-center gap-1 text-[9px] font-semibold bg-gray-200/70 text-gray-600 px-2 py-0.5 rounded-full">
+                <i className="fas fa-lock text-[8px]"></i>
+                {t.comingSoon}
+              </span>
+            </div>
 
-          {/* Divider */}
-          <div className="h-5 border-l border-gray-200"></div>
+            {/* Lista zablokowanych elementów historii */}
+            <div className="space-y-1.5 opacity-60">
+              <div
+                className="w-full p-2.5 rounded-xl border border-dashed border-gray-200 bg-white/70 flex items-center justify-between text-xs text-gray-400 cursor-not-allowed select-none"
+                title={t.historyComingSoon}
+              >
+                <div className="flex items-center gap-2 truncate">
+                  <i className="far fa-message text-[11px] text-gray-400"></i>
+                  <span className="truncate">{t.mockHistory1}</span>
+                </div>
+                <i className="fas fa-lock text-[9px] text-gray-400 flex-shrink-0 ml-1"></i>
+              </div>
 
-          {/* Nowy chat */}
-          <button
-            onClick={handleNewChat}
-            className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center text-gray-400 hover:text-blue-600 transition-colors text-base sm:text-xl tall-phone-header-btn"
-            title={t.newChat}
-          >
-            <i className="fas fa-plus"></i>
-          </button>
+              <div
+                className="w-full p-2.5 rounded-xl border border-dashed border-gray-200 bg-white/70 flex items-center justify-between text-xs text-gray-400 cursor-not-allowed select-none"
+                title={t.historyComingSoon}
+              >
+                <div className="flex items-center gap-2 truncate">
+                  <i className="far fa-message text-[11px] text-gray-400"></i>
+                  <span className="truncate">{t.mockHistory2}</span>
+                </div>
+                <i className="fas fa-lock text-[9px] text-gray-400 flex-shrink-0 ml-1"></i>
+              </div>
 
-          {/* Ustawienia */}
-          <button
-            onClick={() =>
-              setState((prev) => ({ ...prev, showSettings: true }))
-            }
-            className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors text-base sm:text-xl tall-phone-header-btn"
-            title={t.settingsTitle}
-          >
-            <i className="fas fa-cog"></i>
-          </button>
-        </div>
-      </header>
-      {/* --- CHAT --- */}
-      <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3 sm:p-6 space-y-2 bg-gray-50/50">
-        {state.messages.map((msg) => (
-          <ChatBubble key={msg.id} message={msg} />
-        ))}
+              <div
+                className="w-full p-2.5 rounded-xl border border-dashed border-gray-200 bg-white/70 flex items-center justify-between text-xs text-gray-400 cursor-not-allowed select-none"
+                title={t.historyComingSoon}
+              >
+                <div className="flex items-center gap-2 truncate">
+                  <i className="far fa-message text-[11px] text-gray-400"></i>
+                  <span className="truncate">{t.mockHistory3}</span>
+                </div>
+                <i className="fas fa-lock text-[9px] text-gray-400 flex-shrink-0 ml-1"></i>
+              </div>
+            </div>
 
-        {/* UNIWERSALNY SZARY DYMEK */}
-        {(interimTranscript || (isMobile && state.isRecording && inputText)) && (
-          <div className="flex justify-end mb-4">
-            <div className="max-w-[80%] rounded-2xl px-4 py-3 bg-gray-100 text-gray-500 rounded-tr-none border border-gray-200 opacity-80 italic">
-              <p className="text-sm">
-                {isMobile ? (
-                  /* Na mobile pokazujemy cały sklejony tekst w szarym dymku */
-                  <span>
-                    {inputText} {interimTranscript}
-                  </span>
-                ) : (
-                  /* Na PC pokazujemy tylko aktualnie wykrywany fragment */
-                  <span>{interimTranscript}...</span>
-                )}
+            {/* Karta informacyjna o synchronizacji w chmurze */}
+            <div className="mt-4 p-3 rounded-2xl bg-slate-100/80 border border-slate-200/70 text-center">
+              <div className="w-7 h-7 mx-auto mb-1.5 rounded-full bg-slate-200/90 flex items-center justify-center text-slate-500 text-xs">
+                <i className="fas fa-cloud-arrow-up"></i>
+              </div>
+              <p className="text-[11px] font-semibold text-slate-700">
+                {t.historyCloudSync}
+              </p>
+              <p className="text-[10px] text-slate-500 mt-0.5 leading-snug">
+                {t.historyCloudDesc}
               </p>
             </div>
           </div>
-        )}
 
-        {state.isProcessing && (
-          <div className="flex justify-start">
-            <div className="bg-white border border-gray-100 rounded-2xl px-4 py-3 flex items-center gap-2 shadow-sm">
-              <div className="flex gap-1">
-                <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div>
-                <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+          {/* ZABLOKOWANE PRZYCISKI LOGOWANIA I REJESTRACJI */}
+          <div className="p-3 lg:p-4 border-t border-gray-200/80 bg-white/90">
+            <div className="flex items-center justify-between mb-2 px-1">
+              <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                <i className="fas fa-user-circle text-xs"></i>
+                <span>{t.account}</span>
               </div>
+              <span className="inline-flex items-center gap-1 text-[9px] font-semibold bg-gray-200/70 text-gray-600 px-2 py-0.5 rounded-full">
+                <i className="fas fa-lock text-[8px]"></i>
+                {t.comingSoon}
+              </span>
             </div>
-          </div>
-        )}
-        <div ref={chatEndRef} />
-      </main>
 
-      {state.error && (
-        <div className="absolute left-1/2 -translate-x-1/2 bottom-[7.5rem] sm:bottom-[8.5rem] z-40 w-[92%] sm:w-[80%] max-w-xl animate-in fade-in slide-in-from-bottom-2 duration-200">
-          <div className="rounded-2xl border border-red-200 bg-red-50/95 backdrop-blur-sm shadow-lg px-4 py-3">
-            <div className="flex items-start gap-3">
-              <i className="fas fa-circle-exclamation text-red-500 mt-0.5"></i>
-              <div className="flex-1 text-red-700 text-xs sm:text-sm leading-relaxed">
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    p: ({ node, ...props }) => <span {...props} />,
-                    a: ({ node, ...props }) => (
-                      <a
-                        {...props}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="underline font-semibold"
-                      />
-                    ),
-                  }}
-                >
-                  {displayedError}
-                </ReactMarkdown>
-              </div>
+            <div className="grid grid-cols-2 gap-2">
               <button
-                onClick={() => setState((prev) => ({ ...prev, error: null }))}
-                className="text-red-400 hover:text-red-600 transition-colors"
-                aria-label="Close error popup"
+                disabled
+                title={t.authComingSoon}
+                className="py-2 px-2.5 rounded-xl border border-gray-200 bg-gray-50 text-gray-400 text-xs font-medium flex items-center justify-center gap-1.5 cursor-not-allowed opacity-75"
               >
-                <i className="fas fa-xmark"></i>
+                <i className="fas fa-right-to-bracket text-xs text-gray-400"></i>
+                <span className="truncate">{t.login}</span>
+              </button>
+
+              <button
+                disabled
+                title={t.authComingSoon}
+                className="py-2 px-2.5 rounded-xl border border-transparent bg-blue-50 text-blue-400 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-not-allowed opacity-75"
+              >
+                <i className="fas fa-user-plus text-xs text-blue-400"></i>
+                <span className="truncate">{t.register}</span>
               </button>
             </div>
+
+            <div className="mt-2.5 text-[10px] text-gray-400 text-center font-medium">
+              &copy; {new Date().getFullYear()} {t.copyright}
+            </div>
           </div>
         </div>
-      )}
+      </aside>
 
-      {/* --- FOOTER --- */}
-      <footer
-        className={`bg-white border-t ${
-          isMobile && isKeyboardOpen ? "px-2 pt-1.5 pb-1" : "p-3 sm:p-4"
-        }`}
-      >
-        {/* Mobile fallback: jeśli Web TTS zablokowany, pokaż przycisk do ręcznego odtworzenia */}
-        {isMobile && state.settings.enableTTS && (
-          ((state.settings.ttsModel === "browser" && pendingTtsText) || (state.settings.ttsModel === "piper" && pendingPiperPlayback))
-        ) && (
-          <div className="mb-2 flex justify-center">
+      {/* --- GŁÓWNY OBSZAR CZATU --- */}
+      <div className="flex-1 flex flex-col h-full min-w-0 bg-white relative">
+        <header className="bg-white border-b px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between z-10 flex-shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            {/* Przycisk rozwijania paska bocznego (na tabletach/komputerach, gdy pasek jest zwinięty) */}
+            {!isSidebarOpen && (
+              <button
+                onClick={() => setIsSidebarOpen(true)}
+                className="hidden md:flex w-9 h-9 rounded-xl border border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-500 items-center justify-center transition-colors flex-shrink-0 mr-1"
+                title={t.showSidebar}
+              >
+                <i className="fas fa-bars text-sm"></i>
+              </button>
+            )}
+
+            {/* Logo i Tytuł (widoczne na telefonie, a na desktopie gdy pasek boczny jest zwinięty) */}
+            <div className={`flex items-center gap-2 sm:gap-3 min-w-0 ${isSidebarOpen ? "md:hidden" : ""}`}>
+              <div className="w-8 h-8 sm:w-[43px] sm:h-[43px] flex-shrink-0 flex items-center justify-center">
+                <img
+                  src={travelIcon} 
+                  alt="Travel Assistant Icon"
+                  className="w-full h-full object-contain rounded-xl shadow-sm"
+                />
+              </div>
+              <div className="min-w-0">
+                <h1 className="font-bold text-gray-800 text-sm sm:text-lg tall-phone-title truncate">
+                  {t.title}
+                </h1>
+                <p
+                  className={`text-[10px] sm:text-xs tall-phone-status font-medium flex items-center gap-1 ${
+                    isBackendConnected ? "text-green-500" : "text-red-500"
+                  } truncate`}
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                      isBackendConnected
+                        ? "bg-green-500 animate-pulse"
+                        : "bg-red-500"
+                    }`}
+                  ></span>
+                  <span className="truncate">{isBackendConnected ? t.available : t.unavailable}</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Na desktopie gdy pasek boczny jest otwarty: elegancki tytuł aktywnej rozmowy i etykieta profilu */}
+            <div className={`hidden ${isSidebarOpen ? "md:flex" : "hidden"} items-center gap-3 min-w-0`}>
+              <div className="min-w-0">
+                <h1 className="font-bold text-gray-800 text-sm lg:text-base leading-tight truncate">
+                  {t.activeChat}
+                </h1>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-[11px] text-gray-500 flex items-center gap-1">
+                    {t.profile}:
+                    <span className={`font-semibold ${
+                      activeProfile() === "fast" ? "text-blue-600" :
+                      activeProfile() === "normal" ? "text-green-600" :
+                      activeProfile() === "empathetic" ? "text-purple-600" : "text-gray-600"
+                    }`}>
+                      {activeProfile() === "fast" ? t.profileFast :
+                       activeProfile() === "normal" ? t.profileNormal :
+                       activeProfile() === "empathetic" ? t.profileEmp : "Custom"}
+                    </span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {/* Szybkie ustawienia */}
             <button
               onClick={() => {
-                playPendingTts();
+                if (state.settings.enableTTS && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+                
+                const nextEnable = !state.settings.enableTTS;
+                if (nextEnable) unlockWebTtsIfNeeded();
+
+                setState((prev) => ({
+                  ...prev,
+                  settings: {
+                    ...prev.settings,
+                    enableTTS: nextEnable,
+                    ttsModel:
+                      nextEnable && !webSpeechSupport.tts
+                        ? "piper"
+                        : prev.settings.ttsModel,
+                  },
+                }));
               }}
-              className="text-xs font-semibold px-4 py-2 rounded-full bg-blue-600 text-white shadow hover:bg-blue-700 transition-colors"
+              className={`rounded-full flex items-center justify-center transition-all text-base sm:text-lg tall-phone-header-btn ${
+                state.settings.enableTTS
+                  ? "w-9 h-9 sm:w-11 sm:h-11 tall-phone-header-circle tall-phone-header-circle-lg bg-green-100 text-green-600"
+                  : "w-9 h-9 tall-phone-header-circle bg-transparent text-gray-300 hover:text-gray-400"
+              }`}
+              title={t.enableTTS}
             >
-              {t.tapToPlayTTS}
+              <i
+                className={`fas ${
+                  state.settings.enableTTS ? "fa-volume-high" : "fa-volume-xmark"
+                }`}
+              ></i>
             </button>
+
+            <button
+              onClick={() =>
+                setState((prev) => {
+                  const nextEnableEmotions = !prev.settings.enableEmotions;
+                  return {
+                    ...prev,
+                    settings: {
+                      ...prev.settings,
+                      enableEmotions: nextEnableEmotions,
+                      sttModel: nextEnableEmotions
+                        ? "whisper"
+                        : (webSpeechSupport.stt ? "browser" : "whisper"),
+                    },
+                  };
+                })
+              }
+              className={`rounded-full flex items-center justify-center transition-all text-base sm:text-lg tall-phone-header-btn ${
+                state.settings.enableEmotions
+                  ? "w-9 h-9 sm:w-11 sm:h-11 tall-phone-header-circle tall-phone-header-circle-lg bg-purple-100 text-purple-600"
+                  : "w-9 h-9 tall-phone-header-circle bg-transparent text-gray-300 hover:text-gray-400"
+              }`}
+              title={t.enableEmotions}
+            >
+              <i
+                className={`fas ${
+                  state.settings.enableEmotions ? "fa-face-smile" : "fa-face-meh"
+                }`}
+              ></i>
+            </button>
+
+            {/* Divider */}
+            <div className="h-5 border-l border-gray-200"></div>
+
+            {/* Nowy chat */}
+            <button
+              onClick={handleNewChat}
+              className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center text-gray-400 hover:text-blue-600 transition-colors text-base sm:text-xl tall-phone-header-btn"
+              title={t.newChat}
+            >
+              <i className="fas fa-plus"></i>
+            </button>
+
+            {/* Ustawienia */}
+            <button
+              onClick={() =>
+                setState((prev) => ({ ...prev, showSettings: true }))
+              }
+              className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors text-base sm:text-xl tall-phone-header-btn"
+              title={t.settingsTitle}
+            >
+              <i className="fas fa-cog"></i>
+            </button>
+          </div>
+        </header>
+
+        {/* --- CHAT --- */}
+        <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3 sm:p-6 bg-gray-50/50">
+          <div className="max-w-4xl mx-auto w-full space-y-2">
+            {state.messages.map((msg) => (
+              <ChatBubble key={msg.id} message={msg} />
+            ))}
+
+            {/* UNIWERSALNY SZARY DYMEK */}
+            {(interimTranscript || (isMobile && state.isRecording && inputText)) && (
+              <div className="flex justify-end mb-4">
+                <div className="max-w-[80%] rounded-2xl px-4 py-3 bg-gray-100 text-gray-500 rounded-tr-none border border-gray-200 opacity-80 italic">
+                  <p className="text-sm">
+                    {isMobile ? (
+                      /* Na mobile pokazujemy cały sklejony tekst w szarym dymku */
+                      <span>
+                        {inputText} {interimTranscript}
+                      </span>
+                    ) : (
+                      /* Na PC pokazujemy tylko aktualnie wykrywany fragment */
+                      <span>{interimTranscript}...</span>
+                    )}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {state.isProcessing && (
+              <div className="flex justify-start">
+                <div className="bg-white border border-gray-100 rounded-2xl px-4 py-3 flex items-center gap-2 shadow-sm">
+                  <div className="flex gap-1">
+                    <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div>
+                    <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                    <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                  </div>
+                </div>
+              </div>
+            )}
+            <div ref={chatEndRef} />
+          </div>
+        </main>
+
+        {state.error && (
+          <div className="absolute left-1/2 -translate-x-1/2 bottom-[7.5rem] sm:bottom-[8.5rem] z-40 w-[92%] sm:w-[80%] max-w-xl animate-in fade-in slide-in-from-bottom-2 duration-200">
+            <div className="rounded-2xl border border-red-200 bg-red-50/95 backdrop-blur-sm shadow-lg px-4 py-3">
+              <div className="flex items-start gap-3">
+                <i className="fas fa-circle-exclamation text-red-500 mt-0.5"></i>
+                <div className="flex-1 text-red-700 text-xs sm:text-sm leading-relaxed">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      p: ({ node, ...props }) => <span {...props} />,
+                      a: ({ node, ...props }) => (
+                        <a
+                          {...props}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="underline font-semibold"
+                        />
+                      ),
+                    }}
+                  >
+                    {displayedError}
+                  </ReactMarkdown>
+                </div>
+                <button
+                  onClick={() => setState((prev) => ({ ...prev, error: null }))}
+                  className="text-red-400 hover:text-red-600 transition-colors"
+                  aria-label="Close error popup"
+                >
+                  <i className="fas fa-xmark"></i>
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
-        <div className="flex items-center gap-2 mb-2">
-          <button
-            onClick={state.isRecording ? stopRecording : startRecording}
-            className={`
-              h-12 sm:h-14 w-12 sm:w-14 rounded-full flex-shrink-0 flex items-center justify-center transition-all shadow-md
-              ${
-                state.isRecording
-                  ? "bg-red-500 shadow-red-200 animate-pulse"
-                  : state.settings.enableEmotions
-                  ? "bg-purple-600 hover:bg-purple-700 text-white"
-                  : "bg-blue-600 hover:bg-blue-700 text-white"
-              }
-            `}
-          >
-            <i
-              className={`fas ${
-                state.isRecording
-                  ? state.settings.sttModel !== "browser"
-                    ? "fa-paper-plane text-lg sm:text-xl"
-                    : "fa-stop"
-                  : "fa-microphone text-lg sm:text-xl"
-              }`}
-            ></i>
-          </button>
-
-          <div className="flex-1 h-12 sm:h-14 bg-gray-100 rounded-full px-4 sm:px-5 flex items-center transition-all relative overflow-hidden">
-            {state.isRecording ? (
-              <SoundWave />
-            ) : (
-              <>
-                <textarea
-                  value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSendMessage(inputText, true);
-                    }
-                  }}
-                  placeholder={t.inputPlaceholder}
-                  className="bg-transparent w-full h-full outline-none text-gray-700 placeholder-gray-400 text-sm resize-none py-3 sm:py-4 pr-3 overflow-y-auto custom-scrollbar"
-                />
-                <button
-                  onClick={() => handleSendMessage(inputText, true)}
-                  className="text-blue-600 hover:text-blue-800 ml-2 flex-shrink-0"
-                >
-                  <i className="fas fa-paper-plane text-lg sm:text-xl"></i>
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-
-        <div
-          className={`text-[10px] text-gray-300 text-center font-medium ${
-            isMobile && isKeyboardOpen
-              ? "hidden"
-              : isMobile
-              ? "pb-2"
-              : ""
+        {/* --- FOOTER --- */}
+        <footer
+          className={`bg-white border-t ${
+            isMobile && isKeyboardOpen ? "px-2 pt-1.5 pb-1" : "p-3 sm:p-4"
           }`}
         >
-          &copy; {new Date().getFullYear()} {t.copyright}
-        </div>
-      </footer>
+          <div className="max-w-4xl mx-auto w-full">
+            {/* Mobile fallback: jeśli Web TTS zablokowany, pokaż przycisk do ręcznego odtworzenia */}
+            {isMobile && state.settings.enableTTS && (
+              ((state.settings.ttsModel === "browser" && pendingTtsText) || (state.settings.ttsModel === "piper" && pendingPiperPlayback))
+            ) && (
+              <div className="mb-2 flex justify-center">
+                <button
+                  onClick={() => {
+                    playPendingTts();
+                  }}
+                  className="text-xs font-semibold px-4 py-2 rounded-full bg-blue-600 text-white shadow hover:bg-blue-700 transition-colors"
+                >
+                  {t.tapToPlayTTS}
+                </button>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 mb-2">
+              <button
+                onClick={state.isRecording ? stopRecording : startRecording}
+                className={`
+                  h-12 sm:h-14 w-12 sm:w-14 rounded-full flex-shrink-0 flex items-center justify-center transition-all shadow-md
+                  ${
+                    state.isRecording
+                      ? "bg-red-500 shadow-red-200 animate-pulse"
+                      : state.settings.enableEmotions
+                      ? "bg-purple-600 hover:bg-purple-700 text-white"
+                      : "bg-blue-600 hover:bg-blue-700 text-white"
+                  }
+                `}
+              >
+                <i
+                  className={`fas ${
+                    state.isRecording
+                      ? state.settings.sttModel !== "browser"
+                        ? "fa-paper-plane text-lg sm:text-xl"
+                        : "fa-stop"
+                      : "fa-microphone text-lg sm:text-xl"
+                  }`}
+                ></i>
+              </button>
+
+              <div className="flex-1 h-12 sm:h-14 bg-gray-100 rounded-full px-4 sm:px-5 flex items-center transition-all relative overflow-hidden">
+                {state.isRecording ? (
+                  <SoundWave />
+                ) : (
+                  <>
+                    <textarea
+                      value={inputText}
+                      onChange={(e) => setInputText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage(inputText, true);
+                        }
+                      }}
+                      placeholder={t.inputPlaceholder}
+                      className="bg-transparent w-full h-full outline-none text-gray-700 placeholder-gray-400 text-sm resize-none py-3 sm:py-4 pr-3 overflow-y-auto custom-scrollbar"
+                    />
+                    <button
+                      onClick={() => handleSendMessage(inputText, true)}
+                      className="text-blue-600 hover:text-blue-800 ml-2 flex-shrink-0"
+                    >
+                      <i className="fas fa-paper-plane text-lg sm:text-xl"></i>
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div
+              className={`text-[10px] text-gray-400 text-center font-medium md:hidden ${
+                isMobile && isKeyboardOpen
+                  ? "hidden"
+                  : isMobile
+                  ? "pb-2"
+                  : ""
+              }`}
+            >
+              &copy; {new Date().getFullYear()} {t.copyright}
+            </div>
+          </div>
+        </footer>
+      </div>
       {/* --- MODAL USTAWIEŃ --- */}
       {state.showSettings && (
         <div className="absolute inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
