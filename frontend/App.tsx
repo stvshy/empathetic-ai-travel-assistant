@@ -282,7 +282,7 @@ const HelpTooltip: React.FC<{
 
   // Wykrywanie języka na podstawie treści (jeśli nie podano jako props) 
   const isPolish = content.includes('Szybki') || content.includes('Empatyczny') || content.includes('Wykrywanie') || content.includes('Czytanie');
-  const lang = propLang || (isPolish ? 'pl' : 'en'); // Use prop if available
+  const lang = propLang || (isPolish ? 'pl' : 'en'); 
 
   // Funkcja formatująca treść z markdownem, kolorami i dzieleniem wyrazów
   const formatContent = (text: string) => {
@@ -1036,7 +1036,7 @@ const splitIntoSentences = (text: string): string[] => {
   const playPendingTts = async () => {
     if (!settingsRef.current.enableTTS) return;
 
-    // ZMIANA: Jeśli model to NIE przeglądarka (czyli Edge lub Piper)
+    // Jeśli model to NIE przeglądarka (czyli Edge lub Piper)
     if (settingsRef.current.ttsModel !== "browser") {
       const audio = piperAudioRef.current;
       if (!audio) return;
@@ -1364,7 +1364,7 @@ const splitIntoSentences = (text: string): string[] => {
       };
       
       recognition.onend = () => {
-        // Na PC wyłączamy od razu. Na mobile zostawiamy (timer decyduje).
+        // Na PC wyłączamy od razu. Na mobile zostawiamy (timer decyduje)
         if (state.isRecording && state.settings.sttModel === "browser" && !isMobile) {
            setState((prev) => ({ ...prev, isRecording: false }));
         }
@@ -1386,7 +1386,7 @@ const splitIntoSentences = (text: string): string[] => {
       window.speechSynthesis.cancel();
     }
     
-    // NOWE CZYSZCZENIE:
+    // CZYSZCZENIE:
     if (ttsAbortControllerRef.current) {
         ttsAbortControllerRef.current.abort();
         ttsAbortControllerRef.current = null;
@@ -1481,7 +1481,7 @@ const splitIntoSentences = (text: string): string[] => {
 
     if (toSend && !isProcessingSpeechRef.current) {
       isProcessingSpeechRef.current = true;
-      // stopRecording jest wywoływany przy kliknięciu stop (user-gesture), ale też z timera.
+      // stopRecording jest wywoływany przy kliknięciu stop, ale też z timera.
       // W tym miejscu nie mamy pewności, więc nie wymuszamy fromUserGesture.
       handleSendMessage(toSend);
     }
@@ -1494,9 +1494,9 @@ const splitIntoSentences = (text: string): string[] => {
   };
 
    const sendAudioToBackend = async (blob: Blob) => {
-    // Filtrujemy wiadomość powitalną (init)
+    // Filtrujemy wiadomość powitalną
     const history = messagesRef.current
-      .filter(msg => msg.id !== "init") // Wyłącz greeting
+      .filter(msg => msg.id !== "init") 
       .map(msg => ({
         role: msg.role,
         text: msg.text
@@ -1646,7 +1646,7 @@ const splitIntoSentences = (text: string): string[] => {
             isSidebarOpen ? "opacity-100" : "opacity-0"
           }`}
         >
-          {/* NAGŁÓWEK PASKU BOCZNEGO: Logo + Nazwa + Status + Przycisk zwijania */}
+          {/* NAGŁÓWEK PASKA BOCZNEGO: Logo + Nazwa + Status + Przycisk zwijania */}
           <div className="p-3.5 lg:p-4 border-b border-gray-200/80 flex items-center justify-between bg-white/70 backdrop-blur-sm">
             <div className="flex items-center gap-2.5 lg:gap-3 min-w-0">
               <div className="w-9 h-9 lg:w-10 lg:h-10 flex-shrink-0 flex items-center justify-center">
@@ -2147,7 +2147,6 @@ const splitIntoSentences = (text: string): string[] => {
               <ChatBubble key={msg.id} message={msg} />
             ))}
 
-            {/* UNIWERSALNY SZARY DYMEK */}
             {(interimTranscript || (isMobile && state.isRecording && inputText)) && (
               <div className="flex justify-end items-start gap-2 sm:gap-2.5 mb-3 sm:mb-4">
                 <div
@@ -2159,12 +2158,10 @@ const splitIntoSentences = (text: string): string[] => {
                     style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}
                   >
                     {isMobile ? (
-                      /* Na mobile pokazujemy cały sklejony tekst w szarym dymku */
                       <span>
                         {inputText} {interimTranscript}
                       </span>
                     ) : (
-                      /* Na PC pokazujemy tylko aktualnie wykrywany fragment */
                       <span>{interimTranscript}...</span>
                     )}
                   </p>
@@ -2241,7 +2238,6 @@ const splitIntoSentences = (text: string): string[] => {
           }`}
         >
           <div className="max-w-4xl mx-auto w-full">
-            {/* Mobile fallback: jeśli Web TTS zablokowany, pokaż przycisk do ręcznego odtworzenia */}
             {isMobile && state.settings.enableTTS && (
               ((state.settings.ttsModel === "browser" && pendingTtsText) || (state.settings.ttsModel === "piper" && pendingPiperPlayback))
             ) && (

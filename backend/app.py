@@ -43,7 +43,7 @@ class ApiLimitExceededError(Exception):
     """Raised when upstream LLM provider reports quota/rate exhaustion."""
 
 
-# --- KONFIGURACJA PIPER TTS (Nowe) ---
+# --- KONFIGURACJA PIPER TTS ---
 BASE = Path(__file__).resolve().parent
 
 # Upewnij się, że piper.exe jest w folderze 'piper_binary' wewnątrz folderu backend
@@ -182,7 +182,7 @@ stt_model = whisper.load_model("base")
 print("⏳ Ładowanie modelu Emocji (Wav2Vec)...")
 emotion_classifier = pipeline("audio-classification", model="superb/wav2vec2-base-superb-er")
 
-# --- START: WARM-UP (ROZGRZEWKA MODELI) ---
+# --- START: ROZGRZEWKA MODELI ---
 # Wykonujemy tylko na Windowsie (lokalnie), gdzie mamy kontrolę nad czasem.
 # Na Hugging Face (Linux) pomijamy to, żeby zmieścić się w limicie czasu startu (30s).
 if platform.system() == "Windows":
@@ -215,7 +215,7 @@ if platform.system() == "Windows":
         print(f"⚠️ Ostrzeżenie: Nie udało się w pełni rozgrzać modeli (błąd: {e})")
 else:
     print("🐧 Wykryto środowisko Linux (Chmura) - Pomijam 'Ghost Run' dla szybszego startu.")
-# --- KONIEC WARM-UP ---
+# --- KONIEC ROZGRZEWKI MODELI ---
 print("✅ Backend gotowy!")
 
 # Funkcja pomocnicza do generowania Edge TTS
