@@ -2167,7 +2167,7 @@ const splitIntoSentences = (text: string): string[] => {
                   }
                 `}
               >
-                {/* Płynnie przenikający gradient dla trybu emocji (od przezroczystości do pełnego gradientu) */}
+                {/* Płynnie przenikający zrównoważony gradient dla trybu emocji (niebiesko-fioletowy) */}
                 <div
                   className={`absolute inset-0 rounded-full pointer-events-none transition-opacity duration-500 ease-out ${
                     state.settings.enableEmotions && !state.isRecording
@@ -2176,7 +2176,7 @@ const splitIntoSentences = (text: string): string[] => {
                   }`}
                   style={{
                     background:
-                      "linear-gradient(135deg, #2563eb 0%, #4338ca 25%, #7c3aed 55%, #9333ea 100%)",
+                      "linear-gradient(135deg, #2563eb 0%, #3b82f6 35%, #7c3aed 75%, #9333ea 100%)",
                   }}
                 />
 
@@ -2213,25 +2213,35 @@ const splitIntoSentences = (text: string): string[] => {
                       className="ml-2 flex-shrink-0 group flex items-center justify-center transition-transform active:scale-95 relative w-7 h-7 sm:w-8 sm:h-8"
                       title="Send"
                     >
-                      {/* Domyślny niebieski samolot */}
-                      <i className="fas fa-paper-plane text-lg sm:text-xl text-blue-600 group-hover:text-blue-700 transition-colors" />
-
-                      {/* Płynnie przenikający gradient dla trybu emocji (od przezroczystości do pełnego gradientu z wyraźnym fioletem) */}
-                      <div
-                        className={`absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-500 ease-out ${
-                          state.settings.enableEmotions ? "opacity-100" : "opacity-0"
-                        }`}
+                      <svg
+                        viewBox="0 0 512 512"
+                        className="w-[18px] h-[18px] sm:w-[20px] sm:h-[20px] transition-transform group-hover:scale-105"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
                       >
-                        <i
-                          className="fas fa-paper-plane text-lg sm:text-xl group-hover:brightness-110 transition-all"
-                          style={{
-                            background:
-                              "linear-gradient(135deg, #2563eb 0%, #4338ca 25%, #7c3aed 55%, #9333ea 100%)",
-                            WebkitBackgroundClip: "text",
-                            WebkitTextFillColor: "transparent",
-                          }}
+                        <defs>
+                          <linearGradient id="emotionSendGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor="#2563eb" />
+                            <stop offset="35%" stopColor="#3b82f6" />
+                            <stop offset="75%" stopColor="#7c3aed" />
+                            <stop offset="100%" stopColor="#9333ea" />
+                          </linearGradient>
+                        </defs>
+                        {/* Domyślny niebieski samolot */}
+                        <path
+                          d="M476 3.2L12.5 270.6c-18.1 10.4-15.8 35.6 2.2 43.2L121 358.4l287.3-253.2c5.5-4.9 13.3 2.6 8.6 8.3L176 407v80.5c0 23.6 28.5 32.9 42.5 15.8L282 426l124.6 52.2c14.2 6 30.4-2.9 33-18.2l72-432C515 7.8 493.3-6.8 476 3.2z"
+                          className="text-blue-600 group-hover:text-blue-700 transition-colors"
+                          fill="currentColor"
                         />
-                      </div>
+                        {/* Płynnie przenikający zrównoważony gradient dla trybu emocji */}
+                        <path
+                          d="M476 3.2L12.5 270.6c-18.1 10.4-15.8 35.6 2.2 43.2L121 358.4l287.3-253.2c5.5-4.9 13.3 2.6 8.6 8.3L176 407v80.5c0 23.6 28.5 32.9 42.5 15.8L282 426l124.6 52.2c14.2 6 30.4-2.9 33-18.2l72-432C515 7.8 493.3-6.8 476 3.2z"
+                          fill="url(#emotionSendGradient)"
+                          className={`transition-opacity duration-500 ease-out ${
+                            state.settings.enableEmotions ? "opacity-100" : "opacity-0"
+                          }`}
+                        />
+                      </svg>
                     </button>
                   </>
                 )}
