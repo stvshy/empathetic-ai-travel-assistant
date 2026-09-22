@@ -1612,15 +1612,33 @@ const splitIntoSentences = (text: string): string[] => {
             font-size: 14px;
           }
         }
+        .sidebar-smooth-transition {
+          transition: width 480ms cubic-bezier(0.16, 1, 0.3, 1),
+                      border-color 480ms cubic-bezier(0.16, 1, 0.3, 1);
+          will-change: width;
+        }
+        .header-smooth-transition {
+          transition: height 480ms cubic-bezier(0.16, 1, 0.3, 1),
+                      padding 480ms cubic-bezier(0.16, 1, 0.3, 1),
+                      opacity 380ms cubic-bezier(0.16, 1, 0.3, 1),
+                      border-color 480ms cubic-bezier(0.16, 1, 0.3, 1);
+          will-change: height, opacity;
+        }
       `}</style>
 
       {/* --- PASEK BOCZNY (TYLKO DLA WIĘKSZYCH EKRANÓW: TABLET, LAPTOP, MONITOR) --- */}
       <aside
         className={`${
-          isSidebarOpen ? "md:w-64 lg:w-72 xl:w-80" : "md:w-0"
-        } hidden md:flex flex-col h-full bg-slate-50/85 border-r border-gray-200/80 transition-all duration-300 ease-in-out overflow-hidden z-20 flex-shrink-0 select-none`}
+          isSidebarOpen
+            ? "md:w-64 lg:w-72 xl:w-80 border-gray-200/80"
+            : "md:w-0 border-transparent pointer-events-none"
+        } hidden md:flex flex-col h-full bg-slate-50/85 border-r sidebar-smooth-transition overflow-hidden z-20 flex-shrink-0 select-none`}
       >
-        <div className="w-64 lg:w-72 xl:w-80 flex flex-col h-full flex-shrink-0">
+        <div
+          className={`w-64 lg:w-72 xl:w-80 flex flex-col h-full flex-shrink-0 transition-opacity duration-300 ease-in-out ${
+            isSidebarOpen ? "opacity-100" : "opacity-0"
+          }`}
+        >
           {/* NAGŁÓWEK PASKU BOCZNEGO: Logo + Nazwa + Status + Przycisk zwijania */}
           <div className="p-3.5 lg:p-4 border-b border-gray-200/80 flex items-center justify-between bg-white/70 backdrop-blur-sm">
             <div className="flex items-center gap-2.5 lg:gap-3 min-w-0">
@@ -1858,44 +1876,48 @@ const splitIntoSentences = (text: string): string[] => {
 
       {/* --- GŁÓWNY OBSZAR CZATU --- */}
       <div className="flex-1 flex flex-col h-full min-w-0 bg-white relative">
-        {/* Pasek górny na tabletach/komputerach gdy pasek boczny jest zwinięty (zapobiega nachodzeniu przycisku na wiadomości) */}
-        {!isSidebarOpen && (
-          <div className="hidden md:flex items-center justify-between px-4 py-2 border-b border-gray-200/80 bg-white/95 backdrop-blur-sm z-10 flex-shrink-0 h-11">
-            <div className="flex items-center gap-2.5">
-              <button
-                onClick={() => setIsSidebarOpen(true)}
-                className="w-7 h-7 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 flex items-center justify-center transition-colors"
-                title={t.showSidebar}
-              >
-                <i className="fas fa-chevron-right text-xs"></i>
-              </button>
-              <div className="flex items-center gap-2">
-                <div className="w-5 h-5 flex-shrink-0">
-                  <img
-                    src={travelIcon}
-                    alt="Travel Assistant Icon"
-                    className="w-full h-full object-contain rounded-md shadow-2xs"
-                  />
-                </div>
-                <span className="font-bold text-gray-800 text-xs leading-none">
-                  {t.title}
-                </span>
-                <p
-                  className={`text-xs font-semibold flex items-center gap-1.5 ${
-                    isBackendConnected ? "text-green-500" : "text-red-500"
-                  }`}
-                >
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                      isBackendConnected ? "bg-green-500 animate-pulse" : "bg-red-500"
-                    }`}
-                  ></span>
-                  <span>{isBackendConnected ? t.available : t.unavailable}</span>
-                </p>
+        {/* Pasek górny na tabletach/komputerach gdy pasek boczny jest zwinięty (płynne pojawianie się) */}
+        <div
+          className={`hidden md:flex items-center justify-between px-4 border-b bg-white/95 backdrop-blur-sm z-10 flex-shrink-0 header-smooth-transition overflow-hidden ${
+            !isSidebarOpen
+              ? "h-11 py-2 border-gray-200/80 opacity-100"
+              : "h-0 py-0 border-transparent opacity-0 pointer-events-none"
+          }`}
+        >
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="w-7 h-7 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 flex items-center justify-center transition-colors"
+              title={t.showSidebar}
+            >
+              <i className="fas fa-chevron-right text-xs"></i>
+            </button>
+            <div className="flex items-center gap-2">
+              <div className="w-5 h-5 flex-shrink-0">
+                <img
+                  src={travelIcon}
+                  alt="Travel Assistant Icon"
+                  className="w-full h-full object-contain rounded-md shadow-2xs"
+                />
               </div>
+              <span className="font-bold text-gray-800 text-xs leading-none">
+                {t.title}
+              </span>
+              <p
+                className={`text-xs font-semibold flex items-center gap-1.5 ${
+                  isBackendConnected ? "text-green-500" : "text-red-500"
+                }`}
+              >
+                <span
+                  className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                    isBackendConnected ? "bg-green-500 animate-pulse" : "bg-red-500"
+                  }`}
+                ></span>
+                <span>{isBackendConnected ? t.available : t.unavailable}</span>
+              </p>
             </div>
           </div>
-        )}
+        </div>
 
         <header className="bg-white border-b px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between z-10 flex-shrink-0 md:hidden">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -2135,18 +2157,31 @@ const splitIntoSentences = (text: string): string[] => {
               <button
                 onClick={state.isRecording ? stopRecording : startRecording}
                 className={`
-                  h-12 sm:h-13 w-12 sm:w-13 rounded-full flex-shrink-0 flex items-center justify-center transition-all shadow-md
+                  h-12 sm:h-13 w-12 sm:w-13 rounded-full flex-shrink-0 flex items-center justify-center shadow-md relative overflow-hidden transition-all duration-500 ease-out
                   ${
                     state.isRecording
                       ? "bg-red-500 shadow-red-200 animate-pulse"
                       : state.settings.enableEmotions
-                      ? "bg-purple-600 hover:bg-purple-700 text-white"
-                      : "bg-blue-600 hover:bg-blue-700 text-white"
+                      ? "bg-blue-600 shadow-purple-300/50 hover:brightness-105"
+                      : "bg-blue-600 hover:bg-blue-700 shadow-blue-200/50"
                   }
                 `}
               >
+                {/* Płynnie przenikający gradient dla trybu emocji (od przezroczystości do pełnego gradientu) */}
+                <div
+                  className={`absolute inset-0 rounded-full pointer-events-none transition-opacity duration-500 ease-out ${
+                    state.settings.enableEmotions && !state.isRecording
+                      ? "opacity-100"
+                      : "opacity-0"
+                  }`}
+                  style={{
+                    background:
+                      "linear-gradient(135deg, #2563eb 0%, #4338ca 25%, #7c3aed 55%, #9333ea 100%)",
+                  }}
+                />
+
                 <i
-                  className={`fas ${
+                  className={`fas relative z-10 text-white ${
                     state.isRecording
                       ? state.settings.sttModel !== "browser"
                         ? "fa-paper-plane text-lg sm:text-xl"
@@ -2175,9 +2210,28 @@ const splitIntoSentences = (text: string): string[] => {
                     />
                     <button
                       onClick={() => handleSendMessage(inputText, true)}
-                      className="text-blue-600 hover:text-blue-800 ml-2 flex-shrink-0"
+                      className="ml-2 flex-shrink-0 group flex items-center justify-center transition-transform active:scale-95 relative w-7 h-7 sm:w-8 sm:h-8"
+                      title="Send"
                     >
-                      <i className="fas fa-paper-plane text-lg sm:text-xl"></i>
+                      {/* Domyślny niebieski samolot */}
+                      <i className="fas fa-paper-plane text-lg sm:text-xl text-blue-600 group-hover:text-blue-700 transition-colors" />
+
+                      {/* Płynnie przenikający gradient dla trybu emocji (od przezroczystości do pełnego gradientu z wyraźnym fioletem) */}
+                      <div
+                        className={`absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-500 ease-out ${
+                          state.settings.enableEmotions ? "opacity-100" : "opacity-0"
+                        }`}
+                      >
+                        <i
+                          className="fas fa-paper-plane text-lg sm:text-xl group-hover:brightness-110 transition-all"
+                          style={{
+                            background:
+                              "linear-gradient(135deg, #2563eb 0%, #4338ca 25%, #7c3aed 55%, #9333ea 100%)",
+                            WebkitBackgroundClip: "text",
+                            WebkitTextFillColor: "transparent",
+                          }}
+                        />
+                      </div>
                     </button>
                   </>
                 )}
