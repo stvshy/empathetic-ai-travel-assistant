@@ -27,14 +27,18 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({ message }) => {
       )}
 
       <div
-        className={`max-w-[85%] sm:max-w-[80%] rounded-2xl px-3 sm:px-4 py-2 sm:py-3 shadow-sm text-sm sm:text-base tall-phone-bubble ${
+        style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}
+        className={`max-w-[85%] sm:max-w-[80%] min-w-0 break-words rounded-2xl px-3 sm:px-4 py-2 sm:py-3 shadow-sm text-sm sm:text-base tall-phone-bubble ${
           isUser
             ? "bg-blue-600 text-white rounded-tr-none"
             : "bg-white text-gray-800 rounded-tl-none border border-gray-100"
         }`}
       >
         {/* ZMIANA: Zamiast <p> używamy <ReactMarkdown> z prostym stylowaniem */}
-        <div className="text-xs sm:text-sm tall-phone-bubble-markdown leading-relaxed markdown-body">
+        <div
+          style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}
+          className="text-xs sm:text-sm tall-phone-bubble-markdown leading-relaxed markdown-body min-w-0 break-words"
+        >
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={{
@@ -51,7 +55,37 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({ message }) => {
               ),
               // Stylowanie akapitów (żeby nie były sklejone)
               p: ({ node, ...props }) => (
-                <p className="mb-2 last:mb-0" {...props} />
+                <p
+                  className="mb-2 last:mb-0 break-words"
+                  style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}
+                  {...props}
+                />
+              ),
+              // Stylowanie linków
+              a: ({ node, ...props }) => (
+                <a
+                  {...props}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline break-all hover:opacity-80"
+                  style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}
+                />
+              ),
+              // Stylowanie kodu
+              code: ({ node, inline, className, children, ...props }: any) => (
+                <code
+                  className="break-all font-mono text-xs bg-black/10 px-1 py-0.5 rounded"
+                  style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}
+                  {...props}
+                >
+                  {children}
+                </code>
+              ),
+              pre: ({ node, ...props }) => (
+                <pre
+                  className="overflow-x-auto max-w-full my-2 p-2 rounded-lg bg-black/10 text-xs"
+                  {...props}
+                />
               ),
               // Stylowanie tabel
               table: ({ node, ...props }) => (

@@ -1612,6 +1612,13 @@ const splitIntoSentences = (text: string): string[] => {
             font-size: 14px;
           }
         }
+        .tall-phone-bubble,
+        .tall-phone-bubble-markdown,
+        .markdown-body,
+        .markdown-body p {
+          overflow-wrap: anywhere;
+          word-break: break-word;
+        }
         .sidebar-smooth-transition {
           transition: width 480ms cubic-bezier(0.16, 1, 0.3, 1),
                       border-color 480ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -2134,8 +2141,8 @@ const splitIntoSentences = (text: string): string[] => {
         </header>
 
         {/* --- CHAT --- */}
-        <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3 sm:p-6 bg-gray-50/50">
-          <div className="max-w-4xl mx-auto w-full space-y-2">
+        <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain p-3 sm:p-6 bg-gray-50/50">
+          <div className="max-w-4xl mx-auto w-full space-y-2 min-w-0">
             {state.messages.map((msg) => (
               <ChatBubble key={msg.id} message={msg} />
             ))}
@@ -2143,8 +2150,14 @@ const splitIntoSentences = (text: string): string[] => {
             {/* UNIWERSALNY SZARY DYMEK */}
             {(interimTranscript || (isMobile && state.isRecording && inputText)) && (
               <div className="flex justify-end items-start gap-2 sm:gap-2.5 mb-3 sm:mb-4">
-                <div className="max-w-[85%] sm:max-w-[80%] rounded-2xl px-4 py-3 bg-gray-100 text-gray-500 rounded-tr-none border border-gray-200 opacity-80 italic">
-                  <p className="text-sm">
+                <div
+                  style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}
+                  className="max-w-[85%] sm:max-w-[80%] min-w-0 break-words rounded-2xl px-4 py-3 bg-gray-100 text-gray-500 rounded-tr-none border border-gray-200 opacity-80 italic"
+                >
+                  <p
+                    className="text-sm break-words"
+                    style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}
+                  >
                     {isMobile ? (
                       /* Na mobile pokazujemy cały sklejony tekst w szarym dymku */
                       <span>
