@@ -1670,13 +1670,10 @@ const splitIntoSentences = (text: string): string[] => {
 
             <button
               onClick={() => setState((prev) => ({ ...prev, showSettings: true }))}
-              className="w-full h-11 px-3.5 rounded-2xl border border-gray-200 hover:border-gray-300 bg-white hover:bg-gray-50 text-gray-700 text-xs lg:text-sm font-medium flex items-center justify-between shadow-2xs transition-all group"
+              className="w-full h-11 px-3.5 rounded-2xl border border-gray-200 hover:border-gray-300 bg-white hover:bg-gray-50 text-gray-700 text-xs lg:text-sm font-medium flex items-center justify-center gap-2 shadow-2xs transition-all group"
             >
-              <div className="flex items-center gap-2.5">
-                <i className="fas fa-cog text-gray-400 group-hover:rotate-45 transition-transform duration-300"></i>
-                <span>{t.settingsTitle}</span>
-              </div>
-              <i className="fas fa-chevron-right text-[10px] text-gray-300 group-hover:translate-x-0.5 transition-transform"></i>
+              <i className="fas fa-cog text-gray-400 group-hover:rotate-45 transition-transform duration-300"></i>
+              <span>{t.settingsTitle}</span>
             </button>
 
             {/* SZYBKIE PRZEŁĄCZNIKI: TTS & EMOCJE Z ANIMACJĄ IKON */}
@@ -1830,38 +1827,32 @@ const splitIntoSentences = (text: string): string[] => {
           </div>
 
           {/* ZABLOKOWANE PRZYCISKI LOGOWANIA I REJESTRACJI */}
-          <div className="p-3 lg:p-4 border-t border-gray-200/80 bg-white/90 md:h-[136px] flex flex-col justify-between flex-shrink-0">
-            <div className="relative rounded-2xl border border-dashed border-gray-200 bg-slate-50/70 p-2 text-center">
-              <div className="flex justify-center mb-1.5">
-                <span className="inline-flex items-center gap-1 text-[9px] font-semibold bg-gray-200/80 text-gray-600 px-2.5 py-0.5 rounded-full">
-                  <i className="fas fa-lock text-[7.5px] text-gray-500"></i>
-                  <span>{t.comingSoon}</span>
-                </span>
-              </div>
+          <div className="p-3 lg:px-4 lg:py-2.5 border-t border-gray-200/80 bg-white/90 md:h-[98px] flex flex-col justify-center flex-shrink-0">
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                disabled
+                title={t.authComingSoon}
+                className="py-1.5 px-2 rounded-xl border border-gray-200/80 bg-slate-50/70 text-gray-400 text-xs font-medium flex items-center justify-center gap-1.5 cursor-not-allowed select-none opacity-80"
+              >
+                <i className="fas fa-right-to-bracket text-xs text-gray-400"></i>
+                <span className="truncate">{t.login}</span>
+              </button>
 
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  disabled
-                  title={t.authComingSoon}
-                  className="py-1.5 px-2 rounded-xl border border-gray-200/80 bg-white text-gray-400 text-xs font-medium flex items-center justify-center gap-1.5 cursor-not-allowed select-none opacity-80"
-                >
-                  <i className="fas fa-right-to-bracket text-xs text-gray-400"></i>
-                  <span className="truncate">{t.login}</span>
-                </button>
-
-                <button
-                  disabled
-                  title={t.authComingSoon}
-                  className="py-1.5 px-2 rounded-xl border border-transparent bg-blue-50/70 text-blue-400 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-not-allowed select-none opacity-80"
-                >
-                  <i className="fas fa-user-plus text-xs text-blue-400"></i>
-                  <span className="truncate">{t.register}</span>
-                </button>
-              </div>
+              <button
+                disabled
+                title={t.authComingSoon}
+                className="py-1.5 px-2 rounded-xl border border-transparent bg-blue-50/70 text-blue-400 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-not-allowed select-none opacity-80"
+              >
+                <i className="fas fa-user-plus text-xs text-blue-400"></i>
+                <span className="truncate">{t.register}</span>
+              </button>
             </div>
 
-            <div className="text-[10px] text-gray-400 text-center font-medium">
-              &copy; {new Date().getFullYear()} {t.copyright}
+            <div className="flex justify-center mt-2">
+              <span className="inline-flex items-center gap-1 text-[9px] font-semibold bg-gray-200/80 text-gray-600 px-2.5 py-0.5 rounded-full">
+                <i className="fas fa-lock text-[7.5px] text-gray-500"></i>
+                <span>{t.comingSoon}</span>
+              </span>
             </div>
           </div>
         </div>
@@ -1869,15 +1860,36 @@ const splitIntoSentences = (text: string): string[] => {
 
       {/* --- GŁÓWNY OBSZAR CZATU --- */}
       <div className="flex-1 flex flex-col h-full min-w-0 bg-white relative">
-        {/* Przycisk rozwijania paska bocznego (na tabletach/komputerach, gdy pasek jest zwinięty) */}
+        {/* Pasek górny na tabletach/komputerach gdy pasek boczny jest zwinięty (zapobiega nachodzeniu przycisku na wiadomości) */}
         {!isSidebarOpen && (
-          <button
-            onClick={() => setIsSidebarOpen(true)}
-            className="hidden md:flex absolute top-3.5 left-3.5 z-30 w-9 h-9 rounded-xl bg-white/90 backdrop-blur-sm shadow-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-600 items-center justify-center transition-all"
-            title={t.showSidebar}
-          >
-            <i className="fas fa-bars text-sm"></i>
-          </button>
+          <div className="hidden md:flex items-center justify-between px-4 py-2 border-b border-gray-200/80 bg-white/95 backdrop-blur-sm z-10 flex-shrink-0 h-11">
+            <div className="flex items-center gap-2.5">
+              <button
+                onClick={() => setIsSidebarOpen(true)}
+                className="w-7 h-7 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 flex items-center justify-center transition-colors"
+                title={t.showSidebar}
+              >
+                <i className="fas fa-chevron-right text-xs"></i>
+              </button>
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 flex-shrink-0">
+                  <img
+                    src={travelIcon}
+                    alt="Travel Assistant Icon"
+                    className="w-full h-full object-contain rounded-md shadow-2xs"
+                  />
+                </div>
+                <span className="font-bold text-gray-800 text-xs leading-none">
+                  {t.title}
+                </span>
+                <span
+                  className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                    isBackendConnected ? "bg-green-500 animate-pulse" : "bg-red-500"
+                  }`}
+                ></span>
+              </div>
+            </div>
+          </div>
         )}
 
         <header className="bg-white border-b px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between z-10 flex-shrink-0 md:hidden">
@@ -2012,8 +2024,8 @@ const splitIntoSentences = (text: string): string[] => {
 
             {/* UNIWERSALNY SZARY DYMEK */}
             {(interimTranscript || (isMobile && state.isRecording && inputText)) && (
-              <div className="flex justify-end mb-4">
-                <div className="max-w-[80%] rounded-2xl px-4 py-3 bg-gray-100 text-gray-500 rounded-tr-none border border-gray-200 opacity-80 italic">
+              <div className="flex justify-end items-start gap-2 sm:gap-2.5 mb-3 sm:mb-4">
+                <div className="max-w-[85%] sm:max-w-[80%] rounded-2xl px-4 py-3 bg-gray-100 text-gray-500 rounded-tr-none border border-gray-200 opacity-80 italic">
                   <p className="text-sm">
                     {isMobile ? (
                       /* Na mobile pokazujemy cały sklejony tekst w szarym dymku */
@@ -2026,16 +2038,28 @@ const splitIntoSentences = (text: string): string[] => {
                     )}
                   </p>
                 </div>
+                <div
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-tr from-slate-700 to-slate-800 text-white flex items-center justify-center flex-shrink-0 shadow-2xs mt-0.5"
+                  title="User"
+                >
+                  <i className="fas fa-user text-xs sm:text-sm"></i>
+                </div>
               </div>
             )}
 
             {state.isProcessing && (
-              <div className="flex justify-start">
-                <div className="bg-white border border-gray-100 rounded-2xl px-4 py-3 flex items-center gap-2 shadow-sm">
+              <div className="flex justify-start items-start gap-2 sm:gap-2.5 mb-3 sm:mb-4">
+                <div
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center flex-shrink-0 shadow-2xs mt-0.5"
+                  title="Travel Assistant"
+                >
+                  <i className="fas fa-compass text-xs sm:text-sm animate-spin [animation-duration:3s]"></i>
+                </div>
+                <div className="bg-white border border-gray-100 rounded-2xl rounded-tl-none px-4 py-3 flex items-center gap-2 shadow-sm">
                   <div className="flex gap-1">
-                    <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div>
-                    <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                    <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                    <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce"></div>
+                    <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                    <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
                   </div>
                 </div>
               </div>
@@ -2081,32 +2105,32 @@ const splitIntoSentences = (text: string): string[] => {
 
         {/* --- FOOTER --- */}
         <footer
-          className={`bg-white border-t border-gray-200/80 md:h-[136px] flex flex-col justify-center flex-shrink-0 ${
-            isMobile && isKeyboardOpen ? "px-2 pt-1.5 pb-1" : "p-3 sm:p-4 md:px-6 md:pt-5 md:pb-3"
+          className={`bg-white border-t border-gray-200/80 md:h-[98px] flex flex-col justify-center flex-shrink-0 ${
+            isMobile && isKeyboardOpen ? "px-2 pt-1.5 pb-1" : "px-3 sm:px-4 md:px-6 py-2 md:pt-2 md:pb-2.5"
           }`}
         >
-          <div className="max-w-4xl mx-auto w-full md:mt-1.5">
+          <div className="max-w-4xl mx-auto w-full">
             {/* Mobile fallback: jeśli Web TTS zablokowany, pokaż przycisk do ręcznego odtworzenia */}
             {isMobile && state.settings.enableTTS && (
               ((state.settings.ttsModel === "browser" && pendingTtsText) || (state.settings.ttsModel === "piper" && pendingPiperPlayback))
             ) && (
-              <div className="mb-2 flex justify-center">
+              <div className="mb-1.5 flex justify-center">
                 <button
                   onClick={() => {
                     playPendingTts();
                   }}
-                  className="text-xs font-semibold px-4 py-2 rounded-full bg-blue-600 text-white shadow hover:bg-blue-700 transition-colors"
+                  className="text-xs font-semibold px-4 py-1.5 rounded-full bg-blue-600 text-white shadow hover:bg-blue-700 transition-colors"
                 >
                   {t.tapToPlayTTS}
                 </button>
               </div>
             )}
 
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-1.5">
               <button
                 onClick={state.isRecording ? stopRecording : startRecording}
                 className={`
-                  h-12 sm:h-14 w-12 sm:w-14 rounded-full flex-shrink-0 flex items-center justify-center transition-all shadow-md
+                  h-12 sm:h-13 w-12 sm:w-13 rounded-full flex-shrink-0 flex items-center justify-center transition-all shadow-md
                   ${
                     state.isRecording
                       ? "bg-red-500 shadow-red-200 animate-pulse"
@@ -2127,7 +2151,7 @@ const splitIntoSentences = (text: string): string[] => {
                 ></i>
               </button>
 
-              <div className="flex-1 h-12 sm:h-14 bg-gray-100 rounded-full px-4 sm:px-5 flex items-center transition-all relative overflow-hidden">
+              <div className="flex-1 h-12 sm:h-13 bg-gray-100 rounded-full px-4 sm:px-5 flex items-center transition-all relative overflow-hidden">
                 {state.isRecording ? (
                   <SoundWave />
                 ) : (
@@ -2142,7 +2166,7 @@ const splitIntoSentences = (text: string): string[] => {
                         }
                       }}
                       placeholder={t.inputPlaceholder}
-                      className="bg-transparent w-full h-full outline-none text-gray-700 placeholder-gray-400 text-sm resize-none py-3 sm:py-4 pr-3 overflow-y-auto custom-scrollbar"
+                      className="bg-transparent w-full h-full outline-none text-gray-700 placeholder-gray-400 text-sm resize-none py-3 sm:py-3.5 pr-3 overflow-y-auto custom-scrollbar"
                     />
                     <button
                       onClick={() => handleSendMessage(inputText, true)}
@@ -2156,11 +2180,9 @@ const splitIntoSentences = (text: string): string[] => {
             </div>
 
             <div
-              className={`text-[10px] text-gray-400 text-center font-medium md:hidden ${
+              className={`text-[10px] text-gray-400 text-center font-medium ${
                 isMobile && isKeyboardOpen
                   ? "hidden"
-                  : isMobile
-                  ? "pb-2"
                   : ""
               }`}
             >

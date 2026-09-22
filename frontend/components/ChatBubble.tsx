@@ -13,8 +13,19 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({ message }) => {
 
   return (
     <div
-      className={`flex w-full mb-3 sm:mb-4 ${isUser ? "justify-end" : "justify-start"}`}
+      className={`flex w-full mb-3 sm:mb-4 gap-2 sm:gap-2.5 items-start ${
+        isUser ? "justify-end" : "justify-start"
+      }`}
     >
+      {!isUser && (
+        <div
+          className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center flex-shrink-0 shadow-2xs mt-0.5"
+          title="Travel Assistant"
+        >
+          <i className="fas fa-compass text-xs sm:text-sm"></i>
+        </div>
+      )}
+
       <div
         className={`max-w-[85%] sm:max-w-[80%] rounded-2xl px-3 sm:px-4 py-2 sm:py-3 shadow-sm text-sm sm:text-base tall-phone-bubble ${
           isUser
@@ -80,6 +91,15 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({ message }) => {
           })}
         </span>
       </div>
+
+      {isUser && (
+        <div
+          className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-tr from-slate-700 to-slate-800 text-white flex items-center justify-center flex-shrink-0 shadow-2xs mt-0.5"
+          title="User"
+        >
+          <i className="fas fa-user text-xs sm:text-sm"></i>
+        </div>
+      )}
     </div>
   );
 };
