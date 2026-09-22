@@ -1636,12 +1636,12 @@ const splitIntoSentences = (text: string): string[] => {
                   {t.title}
                 </h2>
                 <p
-                  className={`text-[10.5px] font-medium flex items-center gap-1.5 mt-0.5 ${
+                  className={`text-[11px] md:text-xs lg:text-[12px] font-semibold flex items-center gap-1.5 mt-0.5 ${
                     isBackendConnected ? "text-green-500" : "text-red-500"
                   } truncate`}
                 >
                   <span
-                    className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                    className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full flex-shrink-0 ${
                       isBackendConnected ? "bg-green-500 animate-pulse" : "bg-red-500"
                     }`}
                   ></span>
@@ -1827,28 +1827,28 @@ const splitIntoSentences = (text: string): string[] => {
           </div>
 
           {/* ZABLOKOWANE PRZYCISKI LOGOWANIA I REJESTRACJI */}
-          <div className="p-3 lg:px-4 lg:py-2.5 border-t border-gray-200/80 bg-white/90 md:h-[98px] flex flex-col justify-center flex-shrink-0">
+          <div className="p-3 lg:px-4 lg:py-2 border-t border-gray-200/80 bg-white/90 md:h-[90px] flex flex-col justify-center flex-shrink-0">
             <div className="grid grid-cols-2 gap-2">
               <button
                 disabled
                 title={t.authComingSoon}
-                className="py-1.5 px-2 rounded-xl border border-gray-200/80 bg-slate-50/70 text-gray-400 text-xs font-medium flex items-center justify-center gap-1.5 cursor-not-allowed select-none opacity-80"
+                className="h-10 px-2.5 rounded-xl border border-gray-200/80 bg-slate-50/70 text-gray-400 text-xs sm:text-[13px] font-semibold flex items-center justify-center gap-1.5 cursor-not-allowed select-none opacity-80"
               >
-                <i className="fas fa-right-to-bracket text-xs text-gray-400"></i>
+                <i className="fas fa-right-to-bracket text-xs sm:text-sm text-gray-400"></i>
                 <span className="truncate">{t.login}</span>
               </button>
 
               <button
                 disabled
                 title={t.authComingSoon}
-                className="py-1.5 px-2 rounded-xl border border-transparent bg-blue-50/70 text-blue-400 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-not-allowed select-none opacity-80"
+                className="h-10 px-2.5 rounded-xl border border-transparent bg-blue-50/70 text-blue-400 text-xs sm:text-[13px] font-semibold flex items-center justify-center gap-1.5 cursor-not-allowed select-none opacity-80"
               >
-                <i className="fas fa-user-plus text-xs text-blue-400"></i>
+                <i className="fas fa-user-plus text-xs sm:text-sm text-blue-400"></i>
                 <span className="truncate">{t.register}</span>
               </button>
             </div>
 
-            <div className="flex justify-center mt-2">
+            <div className="flex justify-center mt-1.5">
               <span className="inline-flex items-center gap-1 text-[9px] font-semibold bg-gray-200/80 text-gray-600 px-2.5 py-0.5 rounded-full">
                 <i className="fas fa-lock text-[7.5px] text-gray-500"></i>
                 <span>{t.comingSoon}</span>
@@ -1882,11 +1882,18 @@ const splitIntoSentences = (text: string): string[] => {
                 <span className="font-bold text-gray-800 text-xs leading-none">
                   {t.title}
                 </span>
-                <span
-                  className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                    isBackendConnected ? "bg-green-500 animate-pulse" : "bg-red-500"
+                <p
+                  className={`text-xs font-semibold flex items-center gap-1.5 ${
+                    isBackendConnected ? "text-green-500" : "text-red-500"
                   }`}
-                ></span>
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                      isBackendConnected ? "bg-green-500 animate-pulse" : "bg-red-500"
+                    }`}
+                  ></span>
+                  <span>{isBackendConnected ? t.available : t.unavailable}</span>
+                </p>
               </div>
             </div>
           </div>
@@ -2039,10 +2046,10 @@ const splitIntoSentences = (text: string): string[] => {
                   </p>
                 </div>
                 <div
-                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-tr from-slate-700 to-slate-800 text-white flex items-center justify-center flex-shrink-0 shadow-2xs mt-0.5"
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center flex-shrink-0 shadow-2xs mt-0.5"
                   title="User"
                 >
-                  <i className="fas fa-user text-xs sm:text-sm"></i>
+                  <i className="fas fa-user text-xs sm:text-sm text-white"></i>
                 </div>
               </div>
             )}
@@ -2050,10 +2057,10 @@ const splitIntoSentences = (text: string): string[] => {
             {state.isProcessing && (
               <div className="flex justify-start items-start gap-2 sm:gap-2.5 mb-3 sm:mb-4">
                 <div
-                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center flex-shrink-0 shadow-2xs mt-0.5"
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-white border border-gray-200/90 text-blue-600 flex items-center justify-center flex-shrink-0 shadow-2xs mt-0.5"
                   title="Travel Assistant"
                 >
-                  <i className="fas fa-compass text-xs sm:text-sm animate-spin [animation-duration:3s]"></i>
+                  <i className="fas fa-compass text-xs sm:text-sm text-blue-600 animate-spin [animation-duration:3s]"></i>
                 </div>
                 <div className="bg-white border border-gray-100 rounded-2xl rounded-tl-none px-4 py-3 flex items-center gap-2 shadow-sm">
                   <div className="flex gap-1">
@@ -2105,8 +2112,8 @@ const splitIntoSentences = (text: string): string[] => {
 
         {/* --- FOOTER --- */}
         <footer
-          className={`bg-white border-t border-gray-200/80 md:h-[98px] flex flex-col justify-center flex-shrink-0 ${
-            isMobile && isKeyboardOpen ? "px-2 pt-1.5 pb-1" : "px-3 sm:px-4 md:px-6 py-2 md:pt-2 md:pb-2.5"
+          className={`bg-white border-t border-gray-200/80 md:h-[90px] flex flex-col justify-end flex-shrink-0 ${
+            isMobile && isKeyboardOpen ? "px-2 pt-1.5 pb-1" : "px-3 sm:px-4 md:px-6 pt-2 pb-1.5 md:pb-2"
           }`}
         >
           <div className="max-w-4xl mx-auto w-full">
@@ -2114,7 +2121,7 @@ const splitIntoSentences = (text: string): string[] => {
             {isMobile && state.settings.enableTTS && (
               ((state.settings.ttsModel === "browser" && pendingTtsText) || (state.settings.ttsModel === "piper" && pendingPiperPlayback))
             ) && (
-              <div className="mb-1.5 flex justify-center">
+              <div className="mb-1 flex justify-center">
                 <button
                   onClick={() => {
                     playPendingTts();
@@ -2126,7 +2133,7 @@ const splitIntoSentences = (text: string): string[] => {
               </div>
             )}
 
-            <div className="flex items-center gap-2 mb-1.5">
+            <div className="flex items-center gap-2 mb-1">
               <button
                 onClick={state.isRecording ? stopRecording : startRecording}
                 className={`
@@ -2180,7 +2187,7 @@ const splitIntoSentences = (text: string): string[] => {
             </div>
 
             <div
-              className={`text-[10px] text-gray-400 text-center font-medium ${
+              className={`text-[10px] text-gray-400 text-center font-medium leading-none pb-0.5 ${
                 isMobile && isKeyboardOpen
                   ? "hidden"
                   : ""

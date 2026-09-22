@@ -19,10 +19,10 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({ message }) => {
     >
       {!isUser && (
         <div
-          className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center flex-shrink-0 shadow-2xs mt-0.5"
+          className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-white border border-gray-200/90 text-blue-600 flex items-center justify-center flex-shrink-0 shadow-2xs mt-0.5"
           title="Travel Assistant"
         >
-          <i className="fas fa-compass text-xs sm:text-sm"></i>
+          <i className="fas fa-compass text-xs sm:text-sm text-blue-600"></i>
         </div>
       )}
 
@@ -94,10 +94,10 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({ message }) => {
 
       {isUser && (
         <div
-          className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-tr from-slate-700 to-slate-800 text-white flex items-center justify-center flex-shrink-0 shadow-2xs mt-0.5"
+          className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center flex-shrink-0 shadow-2xs mt-0.5"
           title="User"
         >
-          <i className="fas fa-user text-xs sm:text-sm"></i>
+          <i className="fas fa-user text-xs sm:text-sm text-white"></i>
         </div>
       )}
     </div>
