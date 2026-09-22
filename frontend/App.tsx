@@ -1917,6 +1917,97 @@ const splitIntoSentences = (text: string): string[] => {
               </p>
             </div>
           </div>
+
+          {/* Mini przyciski akcji (takie jak na mobile) widoczne po zwinięciu paska bocznego */}
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {/* Szybkie ustawienia: TTS */}
+            <button
+              onClick={() => {
+                if (state.settings.enableTTS && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+                
+                const nextEnable = !state.settings.enableTTS;
+                if (nextEnable) unlockWebTtsIfNeeded();
+
+                setState((prev) => ({
+                  ...prev,
+                  settings: {
+                    ...prev.settings,
+                    enableTTS: nextEnable,
+                    ttsModel:
+                      nextEnable && !webSpeechSupport.tts
+                        ? "piper"
+                        : prev.settings.ttsModel,
+                  },
+                }));
+              }}
+              className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all text-xs ${
+                state.settings.enableTTS
+                  ? "bg-green-100 text-green-600"
+                  : "bg-transparent text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+              }`}
+              title={t.enableTTS}
+            >
+              <i
+                className={`fas ${
+                  state.settings.enableTTS ? "fa-volume-high" : "fa-volume-xmark"
+                }`}
+              ></i>
+            </button>
+
+            {/* Szybkie ustawienia: Emocje */}
+            <button
+              onClick={() =>
+                setState((prev) => {
+                  const nextEnableEmotions = !prev.settings.enableEmotions;
+                  return {
+                    ...prev,
+                    settings: {
+                      ...prev.settings,
+                      enableEmotions: nextEnableEmotions,
+                      sttModel: nextEnableEmotions
+                        ? "whisper"
+                        : (webSpeechSupport.stt ? "browser" : "whisper"),
+                    },
+                  };
+                })
+              }
+              className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all text-xs ${
+                state.settings.enableEmotions
+                  ? "bg-purple-100 text-purple-600"
+                  : "bg-transparent text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+              }`}
+              title={t.enableEmotions}
+            >
+              <i
+                className={`fas ${
+                  state.settings.enableEmotions ? "fa-face-smile" : "fa-face-meh"
+                }`}
+              ></i>
+            </button>
+
+            {/* Divider */}
+            <div className="h-4 border-l border-gray-200 mx-0.5"></div>
+
+            {/* Nowy chat */}
+            <button
+              onClick={handleNewChat}
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-gray-100 transition-colors text-xs"
+              title={t.newChat}
+            >
+              <i className="fas fa-plus"></i>
+            </button>
+
+            {/* Ustawienia */}
+            <button
+              onClick={() =>
+                setState((prev) => ({ ...prev, showSettings: true }))
+              }
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors text-xs"
+              title={t.settingsTitle}
+            >
+              <i className="fas fa-cog"></i>
+            </button>
+          </div>
         </div>
 
         <header className="bg-white border-b px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between z-10 flex-shrink-0 md:hidden">
