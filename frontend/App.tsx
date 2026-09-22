@@ -1880,36 +1880,36 @@ const splitIntoSentences = (text: string): string[] => {
         <div
           className={`hidden md:flex items-center justify-between px-4 border-b bg-white/95 backdrop-blur-sm z-10 flex-shrink-0 header-smooth-transition overflow-hidden ${
             !isSidebarOpen
-              ? "h-11 py-2 border-gray-200/80 opacity-100"
+              ? "h-12 py-2 border-gray-200/80 opacity-100"
               : "h-0 py-0 border-transparent opacity-0 pointer-events-none"
           }`}
         >
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-3">
             <button
               onClick={() => setIsSidebarOpen(true)}
-              className="w-7 h-7 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 flex items-center justify-center transition-colors"
+              className="w-8 h-8 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 flex items-center justify-center transition-colors"
               title={t.showSidebar}
             >
-              <i className="fas fa-chevron-right text-xs"></i>
+              <i className="fas fa-chevron-right text-xs sm:text-sm"></i>
             </button>
-            <div className="flex items-center gap-2">
-              <div className="w-5 h-5 flex-shrink-0">
+            <div className="flex items-center gap-2.5">
+              <div className="w-[27.2px] h-[27.2px] flex-shrink-0 flex items-center justify-center">
                 <img
                   src={travelIcon}
                   alt="Travel Assistant Icon"
-                  className="w-full h-full object-contain rounded-md shadow-2xs"
+                  className="w-full h-full object-contain rounded-lg shadow-2xs"
                 />
               </div>
-              <span className="font-bold text-gray-800 text-xs leading-none">
+              <span className="font-bold text-gray-800 text-[13.5px] leading-none">
                 {t.title}
               </span>
               <p
-                className={`text-xs font-semibold flex items-center gap-1.5 ${
+                className={`text-xs sm:text-[13.1px] font-semibold flex items-center gap-1.5 ${
                   isBackendConnected ? "text-green-500" : "text-red-500"
                 }`}
               >
                 <span
-                  className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                  className={`w-[5.2px] h-[5.2px] rounded-full flex-shrink-0 ${
                     isBackendConnected ? "bg-green-500 animate-pulse" : "bg-red-500"
                   }`}
                 ></span>
@@ -1919,7 +1919,7 @@ const splitIntoSentences = (text: string): string[] => {
           </div>
 
           {/* Mini przyciski akcji (takie jak na mobile) widoczne po zwinięciu paska bocznego */}
-          <div className="flex items-center gap-1 flex-shrink-0">
+          <div className="flex items-center gap-1.5 flex-shrink-0">
             {/* Szybkie ustawienia: TTS */}
             <button
               onClick={() => {
@@ -1940,7 +1940,7 @@ const splitIntoSentences = (text: string): string[] => {
                   },
                 }));
               }}
-              className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all text-xs ${
+              className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
                 state.settings.enableTTS
                   ? "bg-green-100 text-green-600"
                   : "bg-transparent text-gray-400 hover:text-gray-600 hover:bg-gray-100"
@@ -1950,7 +1950,7 @@ const splitIntoSentences = (text: string): string[] => {
               <i
                 className={`fas ${
                   state.settings.enableTTS ? "fa-volume-high" : "fa-volume-xmark"
-                }`}
+                } text-sm sm:text-base`}
               ></i>
             </button>
 
@@ -1971,7 +1971,7 @@ const splitIntoSentences = (text: string): string[] => {
                   };
                 })
               }
-              className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all text-xs ${
+              className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
                 state.settings.enableEmotions
                   ? "bg-purple-100 text-purple-600"
                   : "bg-transparent text-gray-400 hover:text-gray-600 hover:bg-gray-100"
@@ -1981,20 +1981,20 @@ const splitIntoSentences = (text: string): string[] => {
               <i
                 className={`fas ${
                   state.settings.enableEmotions ? "fa-face-smile" : "fa-face-meh"
-                }`}
+                } text-sm sm:text-base`}
               ></i>
             </button>
 
             {/* Divider */}
-            <div className="h-4 border-l border-gray-200 mx-0.5"></div>
+            <div className="h-5 border-l border-gray-200 mx-1"></div>
 
             {/* Nowy chat */}
             <button
               onClick={handleNewChat}
-              className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-gray-100 transition-colors text-xs"
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-gray-100 transition-colors"
               title={t.newChat}
             >
-              <i className="fas fa-plus"></i>
+              <i className="fas fa-plus text-sm sm:text-base"></i>
             </button>
 
             {/* Ustawienia */}
@@ -2002,10 +2002,10 @@ const splitIntoSentences = (text: string): string[] => {
               onClick={() =>
                 setState((prev) => ({ ...prev, showSettings: true }))
               }
-              className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors text-xs"
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
               title={t.settingsTitle}
             >
-              <i className="fas fa-cog"></i>
+              <i className="fas fa-cog text-sm sm:text-base"></i>
             </button>
           </div>
         </div>
