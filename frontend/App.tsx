@@ -2021,7 +2021,7 @@ const splitIntoSentences = (text: string): string[] => {
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             {/* Logo i Tytuł (widoczne na telefonie) */}
             <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-              <div className="w-[37px] h-[37px] sm:w-[43px] sm:h-[43px] flex-shrink-0 flex items-center justify-center">
+              <div className="w-[36.4px] h-[36.4px] sm:w-[43px] sm:h-[43px] flex-shrink-0 flex items-center justify-center">
                 <img
                   src={travelIcon} 
                   alt="Travel Assistant Icon"
@@ -2349,7 +2349,7 @@ const splitIntoSentences = (text: string): string[] => {
             </div>
 
             <div
-              className={`${isMobile ? "text-[7.0px]" : "text-[8.3px]"} ${isMobile ? "text-gray-300" : "text-gray-400"} text-center font-medium leading-none pb-[4px] pt-[4px] ${
+              className={`${isMobile ? "text-[6.3px]" : "text-[8.3px]"} ${isMobile ? "text-gray-200" : "text-gray-400"} text-center font-medium leading-none pb-[4px] pt-[4px] ${
                 isMobile && isKeyboardOpen
                   ? "hidden"
                   : ""
