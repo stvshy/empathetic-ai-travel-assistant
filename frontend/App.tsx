@@ -130,7 +130,7 @@ const TRANSLATIONS = {
     mockHistory3: "Tanie loty i plaże w Grecji",
     activeChat: "Czat z asystentem",
     profile: "Profil",
-    voiceToggle: "Głos (TTS)",
+    voiceToggle: "Głos AI",
     emotionToggle: "Emocje",
     hideSidebar: "Zwiń panel boczny",
     showSidebar: "Rozwiń panel boczny",
@@ -204,7 +204,7 @@ const TRANSLATIONS = {
     mockHistory3: "Cheap flights & beaches in Greece",
     activeChat: "Chat with Assistant",
     profile: "Profile",
-    voiceToggle: "Voice (TTS)",
+    voiceToggle: "Bot Voice",
     emotionToggle: "Emotions",
     hideSidebar: "Collapse sidebar",
     showSidebar: "Expand sidebar",
@@ -1705,9 +1705,9 @@ const splitIntoSentences = (text: string): string[] => {
                 }`}
                 title={t.enableTTS}
               >
-                <span className="truncate text-[11px] font-semibold">{t.voiceToggle}</span>
+                <span className="flex-1 text-center truncate text-[11px] font-semibold pl-1">{t.voiceToggle}</span>
                 <span
-                  className={`w-6 h-6 rounded-lg flex items-center justify-center transition-all duration-200 ${
+                  className={`w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
                     state.settings.enableTTS
                       ? "bg-green-100 text-green-600 scale-105"
                       : "bg-gray-100 text-gray-400 group-hover:text-gray-500"
@@ -1745,9 +1745,9 @@ const splitIntoSentences = (text: string): string[] => {
                 }`}
                 title={t.enableEmotions}
               >
-                <span className="truncate text-[11px] font-semibold">{t.emotionToggle}</span>
+                <span className="flex-1 text-center truncate text-[11px] font-semibold pl-1">{t.emotionToggle}</span>
                 <span
-                  className={`w-6 h-6 rounded-lg flex items-center justify-center transition-all duration-200 ${
+                  className={`w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
                     state.settings.enableEmotions
                       ? "bg-purple-100 text-purple-600 scale-105"
                       : "bg-gray-100 text-gray-400 group-hover:text-gray-500"
@@ -1848,11 +1848,9 @@ const splitIntoSentences = (text: string): string[] => {
               </button>
             </div>
 
-            <div className="flex justify-center mt-1.5">
-              <span className="inline-flex items-center gap-1 text-[9px] font-semibold bg-gray-200/80 text-gray-600 px-2.5 py-0.5 rounded-full">
-                <i className="fas fa-lock text-[7.5px] text-gray-500"></i>
-                <span>{t.comingSoon}</span>
-              </span>
+            <div className="flex items-center justify-center gap-1 mt-1.5 text-[10px] font-medium text-gray-400 select-none">
+              <i className="fas fa-lock text-[7.5px] text-gray-400"></i>
+              <span>{t.comingSoon}</span>
             </div>
           </div>
         </div>
