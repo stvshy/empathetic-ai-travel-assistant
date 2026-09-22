@@ -2187,7 +2187,7 @@ const splitIntoSentences = (text: string): string[] => {
             </div>
 
             <div
-              className={`text-[10px] text-gray-400 text-center font-medium leading-none pb-0.5 ${
+              className={`text-[8.3px] text-gray-400 text-center font-medium leading-none pb-[4px] pt-[4px] ${
                 isMobile && isKeyboardOpen
                   ? "hidden"
                   : ""
